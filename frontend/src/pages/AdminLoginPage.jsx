@@ -7,10 +7,10 @@ import { useServiceHealth } from '../hooks/useServiceHealth'
 export function AdminLoginPage({ auth }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('admin@example.com')
-  const [password, setPassword] = useState('strongpass123')
-  const [bootstrapEmail, setBootstrapEmail] = useState('admin@example.com')
-  const [bootstrapPassword, setBootstrapPassword] = useState('strongpass123')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [bootstrapUsername, setBootstrapUsername] = useState('')
+  const [bootstrapPassword, setBootstrapPassword] = useState('')
   const [bootstrapMessage, setBootstrapMessage] = useState('')
   const { healthItems, isCheckingHealth, refreshHealth } = useServiceHealth()
 
@@ -35,7 +35,7 @@ export function AdminLoginPage({ auth }) {
     auth.clearError()
 
     const user = await auth.login({
-      email: email.trim(),
+      username: username.trim(),
       password,
       allowedRoles: ['platform_admin'],
     })
@@ -60,7 +60,7 @@ export function AdminLoginPage({ auth }) {
     setBootstrapMessage('')
 
     const created = await auth.createFirstPlatformAdmin({
-      email: bootstrapEmail.trim(),
+      username: bootstrapUsername.trim(),
       password: bootstrapPassword,
     })
 
@@ -69,7 +69,7 @@ export function AdminLoginPage({ auth }) {
     }
 
     const user = await auth.login({
-      email: bootstrapEmail.trim(),
+      username: bootstrapUsername.trim(),
       password: bootstrapPassword,
       allowedRoles: ['platform_admin'],
     })
@@ -97,12 +97,12 @@ export function AdminLoginPage({ auth }) {
           </NavLink>
         </div>
         <form className="tenant-form" onSubmit={handleLogin}>
-          <label htmlFor="adminEmail">Email</label>
+          <label htmlFor="adminUsername">Username</label>
           <input
-            id="adminEmail"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            id="adminUsername"
+            type="text"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
           />
 
           <label htmlFor="adminPassword">Password</label>
@@ -124,12 +124,12 @@ export function AdminLoginPage({ auth }) {
         <h2>Dev Bootstrap (Optional)</h2>
         <p className="muted">Create first platform admin in local environment.</p>
         <form className="tenant-form" onSubmit={handleBootstrap}>
-          <label htmlFor="bootstrapEmail">Admin Email</label>
+          <label htmlFor="bootstrapUsername">Admin Username</label>
           <input
-            id="bootstrapEmail"
-            type="email"
-            value={bootstrapEmail}
-            onChange={(event) => setBootstrapEmail(event.target.value)}
+            id="bootstrapUsername"
+            type="text"
+            value={bootstrapUsername}
+            onChange={(event) => setBootstrapUsername(event.target.value)}
           />
 
           <label htmlFor="bootstrapPassword">Admin Password</label>
