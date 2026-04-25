@@ -14,6 +14,7 @@ use App\Services\Auth\JwtService;
 use App\Services\Auth\RefreshTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -55,12 +56,24 @@ final class AuthController extends Controller
         $email = Str::lower(trim((string) $request->validated('email')));
         $password = (string) $request->validated('password');
 
+        $throttleKey = 'login_attempts:' . request()->ip() . ':' . $email;
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return response()->json([
+                'error' => "Too many login attempts. Please try again in {$seconds} seconds.",
+            ], 429);
+        }
+
         $user = $userRepository->findByEmail($email);
         if ($user === null || !Hash::check($password, (string) $user->password)) {
+            RateLimiter::hit($throttleKey, 60);
             return response()->json([
                 'error' => 'Invalid credentials.',
             ], 401);
         }
+
+        RateLimiter::clear($throttleKey);
 
         try {
             $session = $this->issueSessionTokens(
