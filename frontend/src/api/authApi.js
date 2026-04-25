@@ -11,9 +11,11 @@ function normalizeAuthResponse(data) {
   }
 }
 
-export async function login(email, password) {
+export async function login(username, password, tenantId = null) {
   try {
-    const response = await apiClient.post('/auth/login', { email, password })
+    const payload = { username, password };
+    if (tenantId) payload.tenant_id = tenantId;
+    const response = await apiClient.post('/auth/login', payload)
     return normalizeAuthResponse(response.data)
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Login failed'))
@@ -46,9 +48,9 @@ export async function getMe() {
   }
 }
 
-export async function bootstrapPlatformAdmin(email, password) {
+export async function bootstrapPlatformAdmin(username, password) {
   try {
-    const response = await apiClient.post('/auth/bootstrap-admin', { email, password })
+    const response = await apiClient.post('/auth/bootstrap-admin', { username, password })
     return response.data?.user ?? null
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Failed to create platform admin'))

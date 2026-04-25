@@ -81,12 +81,12 @@ export function useAuth() {
     })()
   }, [applySession, clearSession])
 
-  const login = useCallback(async ({ email, password, allowedRoles = [] }) => {
+  const login = useCallback(async ({ username, password, tenantId = null, allowedRoles = [] }) => {
     setIsLoggingIn(true)
     setAuthError('')
 
     try {
-      const result = await loginRequest(email, password)
+      const result = await loginRequest(username, password, tenantId)
       if (!result.user) {
         throw new Error('Login response is missing user data')
       }
@@ -127,12 +127,12 @@ export function useAuth() {
     }
   }, [clearSession, user])
 
-  const createFirstPlatformAdmin = useCallback(async ({ email, password }) => {
+  const createFirstPlatformAdmin = useCallback(async ({ username, password }) => {
     setIsBootstrapping(true)
     setAuthError('')
 
     try {
-      await bootstrapPlatformAdmin(email, password)
+      await bootstrapPlatformAdmin(username, password)
       return true
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Bootstrap failed')

@@ -37,7 +37,7 @@ final class AuthController extends Controller
         }
 
         $user = $userRepository->createPlatformAdmin(
-            (string) $request->validated('email'),
+            (string) $request->validated('username'),
             Hash::make((string) $request->validated('password'))
         );
 
@@ -53,10 +53,11 @@ final class AuthController extends Controller
         JwtService $jwtService,
         RefreshTokenService $refreshTokenService
     ): JsonResponse {
-        $email = Str::lower(trim((string) $request->validated('email')));
+        $username = Str::lower(trim((string) $request->validated('username')));
         $password = (string) $request->validated('password');
+        $tenantId = trim((string) $request->validated('tenant_id'));
 
-        $throttleKey = 'login_attempts:' . request()->ip() . ':' . $email;
+        $throttleKey = 'login_attempts:' . request()->ip() . ':' . $tenantId . ':' . $username;
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
@@ -65,7 +66,7 @@ final class AuthController extends Controller
             ], 429);
         }
 
-        $user = $userRepository->findByEmail($email);
+        $user = $userRepository->findByUsername($username, $tenantId !== '' ? $tenantId : null);
         if ($user === null || !Hash::check($password, (string) $user->password)) {
             RateLimiter::hit($throttleKey, 60);
             return response()->json([

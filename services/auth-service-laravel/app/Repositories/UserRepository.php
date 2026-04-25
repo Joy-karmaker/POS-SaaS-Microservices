@@ -10,20 +10,27 @@ use Illuminate\Support\Str;
 
 final class UserRepository
 {
-    public function findByEmail(string $email): ?object
+    public function findByUsername(string $username, ?string $tenantId = null): ?object
     {
-        return DB::connection()
+        $query = DB::connection()
             ->table('users')
-            ->select(['id', 'tenant_id', 'email', 'password', 'role', 'created_at'])
-            ->where('email', Str::lower(trim($email)))
-            ->first();
+            ->select(['id', 'tenant_id', 'username', 'password', 'role', 'created_at'])
+            ->where('username', Str::lower(trim($username)));
+
+        if ($tenantId === null) {
+            $query->whereNull('tenant_id');
+        } else {
+            $query->where('tenant_id', trim($tenantId));
+        }
+
+        return $query->first();
     }
 
     public function findById(string $id): ?object
     {
         return DB::connection()
             ->table('users')
-            ->select(['id', 'tenant_id', 'email', 'role', 'created_at'])
+            ->select(['id', 'tenant_id', 'username', 'role', 'created_at'])
             ->where('id', $id)
             ->first();
     }
@@ -36,12 +43,12 @@ final class UserRepository
             ->exists();
     }
 
-    public function createPlatformAdmin(string $email, string $passwordHash): object
+    public function createPlatformAdmin(string $username, string $passwordHash): object
     {
         $record = (object) [
             'id' => (string) Str::uuid(),
             'tenant_id' => null,
-            'email' => Str::lower(trim($email)),
+            'username' => Str::lower(trim($username)),
             'password' => $passwordHash,
             'role' => 'platform_admin',
             'created_at' => now('UTC')->format('Y-m-d H:i:s'),
@@ -50,7 +57,7 @@ final class UserRepository
         DB::connection()->table('users')->insert([
             'id' => $record->id,
             'tenant_id' => $record->tenant_id,
-            'email' => $record->email,
+            'username' => $record->username,
             'password' => $record->password,
             'role' => $record->role,
             'created_at' => $record->created_at,
@@ -63,7 +70,7 @@ final class UserRepository
     {
         $query = DB::connection()
             ->table('users')
-            ->select(['id', 'tenant_id', 'email', 'role', 'created_at'])
+            ->select(['id', 'tenant_id', 'username', 'role', 'created_at'])
             ->whereIn('role', ['tenant_admin', 'user'])
             ->orderByDesc('created_at');
 
@@ -76,14 +83,14 @@ final class UserRepository
 
     public function createTenantUser(
         string $tenantId,
-        string $email,
+        string $username,
         string $passwordHash,
         string $role
     ): object {
         $record = (object) [
             'id' => (string) Str::uuid(),
             'tenant_id' => trim($tenantId),
-            'email' => Str::lower(trim($email)),
+            'username' => Str::lower(trim($username)),
             'password' => $passwordHash,
             'role' => trim($role),
             'created_at' => now('UTC')->format('Y-m-d H:i:s'),
@@ -92,7 +99,7 @@ final class UserRepository
         DB::connection()->table('users')->insert([
             'id' => $record->id,
             'tenant_id' => $record->tenant_id,
-            'email' => $record->email,
+            'username' => $record->username,
             'password' => $record->password,
             'role' => $record->role,
             'created_at' => $record->created_at,

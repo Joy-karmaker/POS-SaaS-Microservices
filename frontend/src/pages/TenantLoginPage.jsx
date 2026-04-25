@@ -7,8 +7,8 @@ import { useServiceHealth } from '../hooks/useServiceHealth'
 export function TenantLoginPage({ auth }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('tenant.admin@example.com')
-  const [password, setPassword] = useState('tenant12345')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const { healthItems, isCheckingHealth, refreshHealth } = useServiceHealth()
 
   if (auth.isLoadingSession) {
@@ -30,9 +30,14 @@ export function TenantLoginPage({ auth }) {
     event.preventDefault()
     auth.clearError()
 
+    const parts = username.trim().split('.')
+    const tenantId = parts.length > 1 ? parts[0] : null
+    const actualUsername = parts.length > 1 ? parts.slice(1).join('.') : username.trim()
+
     const user = await auth.login({
-      email: email.trim(),
+      username: actualUsername,
       password,
+      tenantId,
       allowedRoles: ['tenant_admin', 'user'],
     })
 
@@ -64,12 +69,14 @@ export function TenantLoginPage({ auth }) {
           </NavLink>
         </div>
         <form className="tenant-form" onSubmit={handleLogin}>
-          <label htmlFor="tenantEmail">Email</label>
+          <label htmlFor="tenantUsername">Username (e.g. store.1)</label>
           <input
-            id="tenantEmail"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            id="tenantUsername"
+            type="text"
+            pattern="^[a-zA-Z0-9-]+\.\d+$"
+            title="Username must be in the format: tenant_name.number (e.g. mystore.123)"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
           />
 
           <label htmlFor="tenantPassword">Password</label>
