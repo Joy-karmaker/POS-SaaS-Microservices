@@ -10,6 +10,7 @@ use App\Repositories\TenantRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 final class StaffUserService
 {
@@ -24,25 +25,31 @@ final class StaffUserService
         return $this->userRepository->allByTenant($tenantId);
     }
 
-    public function create(string $tenantId, string $email, string $password, string $role): object
+    public function create(string $tenantId, ?string $usernameInput, string $password, string $role): object
     {
         $normalizedTenantId = trim($tenantId);
-        if ($normalizedTenantId === '' || !$this->tenantRepository->existsById($normalizedTenantId)) {
+        $tenant = $this->tenantRepository->findById($normalizedTenantId);
+        
+        if ($tenant === null) {
             throw new TenantNotFoundException('Tenant not found.');
         }
 
-        $normalizedEmail = trim($email);
-        if ($this->userRepository->findByEmail($normalizedEmail) !== null) {
+        // Rule: tenant users username should be shop name.role (or shop name.username)
+        $cleanShopName = Str::slug($tenant->name, '');
+        $suffix = $usernameInput ? Str::slug($usernameInput, '') : strtolower(trim($role));
+        $username = sprintf('%s.%s', $cleanShopName, $suffix);
+
+        if ($this->userRepository->findByUsername($username, $normalizedTenantId) !== null) {
             throw new DuplicateUserEmailException(sprintf(
-                'User with email "%s" already exists.',
-                strtolower($normalizedEmail)
+                'User with username "%s" already exists for this tenant.',
+                $username
             ));
         }
 
         return $this->userRepository->createTenantUser(
             $normalizedTenantId,
-            $normalizedEmail,
-            Hash::make($password),
+            $username,
+            Hash::make($password ?? 'password123'),
             $role
         );
     }

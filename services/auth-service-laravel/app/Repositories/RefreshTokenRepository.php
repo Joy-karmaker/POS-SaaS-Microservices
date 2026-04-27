@@ -12,14 +12,9 @@ final class RefreshTokenRepository
 {
     private const PREFIX = 'auth:rt:';
 
-    public function create(string $userId, string $tokenHash, string $expiresAt): object
+    public function create(string $userId, string $tokenHash, string $expiresAt, int $ttl): object
     {
         $id = (string) Str::uuid();
-        $ttl = Carbon::parse($expiresAt)->diffInSeconds(now('UTC'));
-        
-        if ($ttl <= 0) {
-            $ttl = 1;
-        }
 
         $record = (object) [
             'id' => $id,
@@ -32,40 +27,40 @@ final class RefreshTokenRepository
 
         $json = json_encode($record, JSON_THROW_ON_ERROR);
 
-        Redis::setex(self::PREFIX . 'hash:' . $tokenHash, $ttl, $json);
-        Redis::setex(self::PREFIX . 'id:' . $id, $ttl, $tokenHash);
+        Redis::connection()->setex(self::PREFIX . 'hash:' . $tokenHash, $ttl, $json);
+        Redis::connection()->setex(self::PREFIX . 'id:' . $id, $ttl, $tokenHash);
         
-        Redis::sadd(self::PREFIX . 'user:' . $userId, $tokenHash);
-        Redis::expire(self::PREFIX . 'user:' . $userId, $ttl);
+        Redis::connection()->sadd(self::PREFIX . 'user:' . $userId, $tokenHash);
+        Redis::connection()->expire(self::PREFIX . 'user:' . $userId, $ttl);
 
         return $record;
     }
 
     public function findActiveByHash(string $tokenHash): ?object
     {
-        $data = Redis::get(self::PREFIX . 'hash:' . $tokenHash);
+        $data = Redis::connection()->get(self::PREFIX . 'hash:' . $tokenHash);
         if (!$data) {
             return null;
         }
 
-        return json_decode($data, false);
+        return json_decode((string) $data, false);
     }
 
     public function revokeById(string $id): void
     {
-        $hash = Redis::get(self::PREFIX . 'id:' . $id);
+        $hash = Redis::connection()->get(self::PREFIX . 'id:' . $id);
         if ($hash) {
-            $this->revokeByHash($hash);
+            $this->revokeByHash((string) $hash);
         }
     }
 
     public function revokeAllByUserId(string $userId): void
     {
-        $hashes = Redis::smembers(self::PREFIX . 'user:' . $userId);
+        $hashes = Redis::connection()->smembers(self::PREFIX . 'user:' . $userId);
         foreach ((array) $hashes as $hash) {
             $this->revokeByHash((string) $hash);
         }
-        Redis::del(self::PREFIX . 'user:' . $userId);
+        Redis::connection()->del(self::PREFIX . 'user:' . $userId);
     }
 
     public function revokeByHashForUser(string $userId, string $tokenHash): void
@@ -75,12 +70,12 @@ final class RefreshTokenRepository
 
     private function revokeByHash(string $hash): void
     {
-        $data = Redis::get(self::PREFIX . 'hash:' . $hash);
+        $data = Redis::connection()->get(self::PREFIX . 'hash:' . $hash);
         if ($data) {
-            $record = json_decode($data, false);
-            Redis::del(self::PREFIX . 'id:' . $record->id);
-            Redis::srem(self::PREFIX . 'user:' . $record->user_id, $hash);
+            $record = json_decode((string) $data, false);
+            Redis::connection()->del(self::PREFIX . 'id:' . $record->id);
+            Redis::connection()->srem(self::PREFIX . 'user:' . $record->user_id, $hash);
         }
-        Redis::del(self::PREFIX . 'hash:' . $hash);
+        Redis::connection()->del(self::PREFIX . 'hash:' . $hash);
     }
 }

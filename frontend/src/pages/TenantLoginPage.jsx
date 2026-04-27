@@ -69,12 +69,12 @@ export function TenantLoginPage({ auth }) {
           </NavLink>
         </div>
         <form className="tenant-form" onSubmit={handleLogin}>
-          <label htmlFor="tenantUsername">Username (e.g. store.1)</label>
+          <label htmlFor="tenantUsername">Username (e.g. store.1 or store.admin)</label>
           <input
             id="tenantUsername"
             type="text"
-            pattern="^[a-zA-Z0-9-]+\.\d+$"
-            title="Username must be in the format: tenant_name.number (e.g. mystore.123)"
+            pattern="^[a-zA-Z0-9-]+\.[a-zA-Z0-9]+$"
+            title="Username must be in the format: tenant_name.username (e.g. mystore.123 or mystore.admin)"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
           />

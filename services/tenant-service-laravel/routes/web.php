@@ -26,8 +26,3 @@ Route::middleware(['auth.jwt', 'role:tenant_admin,user'])->group(function (): vo
     Route::post('/shifts/close', [ShiftController::class, 'close']);
     Route::get('/shifts/current', [ShiftController::class, 'current']);
 });
-
-Route::middleware(['auth.jwt', 'role:platform_admin,tenant_admin'])->group(function (): void {
-    Route::get('/users', [StaffUserController::class, 'index']);
-    Route::post('/users', [StaffUserController::class, 'store']);
-});

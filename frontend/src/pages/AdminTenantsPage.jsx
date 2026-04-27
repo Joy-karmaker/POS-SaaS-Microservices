@@ -7,6 +7,8 @@ export function AdminTenantsPage() {
   const {
     tenantName,
     setTenantName,
+    ownerPassword,
+    setOwnerPassword,
     recentTenants,
     tenantError,
     isCreatingTenant,
@@ -34,15 +36,31 @@ export function AdminTenantsPage() {
       <article className="card">
         <h2>Provision Tenant</h2>
         <form className="tenant-form" onSubmit={handleCreateTenant}>
-          <label htmlFor="tenantName">Tenant / Shop Name</label>
-          <input
-            id="tenantName"
-            type="text"
-            placeholder="Example: Demo Store Dhaka"
-            value={tenantName}
-            onChange={(event) => setTenantName(event.target.value)}
-          />
-          <button type="submit" disabled={!canCreateTenant}>
+          <div className="form-group">
+            <label htmlFor="tenantName">Tenant / Shop Name</label>
+            <input
+              id="tenantName"
+              type="text"
+              placeholder="Example: Demo Store Dhaka"
+              value={tenantName}
+              onChange={(event) => setTenantName(event.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="ownerPassword">Initial Owner Password</label>
+            <input
+              id="ownerPassword"
+              type="password"
+              placeholder="Min 8 characters"
+              value={ownerPassword}
+              onChange={(event) => setOwnerPassword(event.target.value)}
+              required
+            />
+          </div>
+
+          <button type="submit" disabled={!canCreateTenant} className="btn-primary">
             {isCreatingTenant ? 'Provisioning...' : 'Create Tenant'}
           </button>
         </form>

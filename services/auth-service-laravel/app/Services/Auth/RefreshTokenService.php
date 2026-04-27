@@ -28,7 +28,8 @@ final class RefreshTokenService
         $this->refreshTokenRepository->create(
             $userId,
             $this->hashToken($plainToken),
-            $expiresAt
+            $expiresAt,
+            $ttl
         );
 
         return [
