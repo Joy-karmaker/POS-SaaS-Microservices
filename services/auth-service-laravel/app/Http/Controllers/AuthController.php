@@ -13,6 +13,7 @@ use App\Repositories\UserRepository;
 use App\Services\Auth\JwtService;
 use App\Services\Auth\RefreshTokenService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -30,6 +31,13 @@ final class AuthController extends Controller
             ], 403);
         }
 
+        $username = Str::lower(trim((string) $request->validated('username')));
+        if (!in_array($username, ['superadmin', 'super.admin'], true)) {
+            return response()->json([
+                'error' => 'Platform admin username must be "superadmin" or "super.admin".',
+            ], 422);
+        }
+
         if ($userRepository->existsPlatformAdmin()) {
             return response()->json([
                 'error' => 'A platform admin already exists.',
@@ -37,7 +45,7 @@ final class AuthController extends Controller
         }
 
         $user = $userRepository->createPlatformAdmin(
-            (string) $request->validated('username'),
+            $username,
             Hash::make((string) $request->validated('password'))
         );
 
@@ -66,7 +74,33 @@ final class AuthController extends Controller
             ], 429);
         }
 
-        $user = $userRepository->findByUsername($username, $tenantId !== '' ? $tenantId : null);
+        $user = null;
+        $resolvedTenantId = $tenantId !== '' ? $tenantId : null;
+
+        // If tenantId is provided but is not a UUID, it might be a slug (shop name)
+        if ($resolvedTenantId !== null && !Str::isUuid($resolvedTenantId)) {
+            $tenant = DB::connection('mysql')->table('tenants')
+                ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [Str::lower(trim($resolvedTenantId))])
+                ->orWhere('id', trim($resolvedTenantId))
+                ->first();
+            
+            if ($tenant) {
+                $resolvedTenantId = (string) $tenant->id;
+            }
+        }
+
+        $user = $userRepository->findByUsername($username, $resolvedTenantId);
+        
+        // If not found with the stripped username, try the full username (backwards compatibility or convention)
+        if ($user === null && $resolvedTenantId !== null && !str_contains($username, '.')) {
+            // Try prefixing the username with the tenant name/slug if we resolved it
+            $tenant = DB::connection('mysql')->table('tenants')->where('id', $resolvedTenantId)->first();
+            if ($tenant) {
+                $prefix = Str::slug($tenant->name, '');
+                $user = $userRepository->findByUsername($prefix . '.' . $username, $resolvedTenantId);
+            }
+        }
+
         if ($user === null || !Hash::check($password, (string) $user->password)) {
             RateLimiter::hit($throttleKey, 60);
             return response()->json([
@@ -241,5 +275,14 @@ final class AuthController extends Controller
             false, // raw
             'Lax' // sameSite
         );
+    }
+
+    public function health(): JsonResponse
+    {
+        return response()->json([
+            'status' => 'ok',
+            'service' => 'auth-service',
+            'time' => now('UTC')->toIso8601String(),
+        ]);
     }
 }

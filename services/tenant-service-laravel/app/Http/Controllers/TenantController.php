@@ -66,7 +66,8 @@ final class TenantController extends Controller
     {
         try {
             $tenant = $provisioningService->provisionTenant(
-                (string) $request->validated('name')
+                (string) $request->validated('name'),
+                (string) ($request->validated('owner_password') ?? '')
             );
 
             return response()->json([

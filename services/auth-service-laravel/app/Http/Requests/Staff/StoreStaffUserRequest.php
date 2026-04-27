@@ -19,7 +19,7 @@ final class StoreStaffUserRequest extends FormRequest
     {
         return [
             'tenant_id' => ['nullable', 'uuid'],
-            'email' => ['required', 'email', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'role' => ['required', 'string', 'in:tenant_admin,user'],
         ];

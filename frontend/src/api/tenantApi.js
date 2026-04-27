@@ -10,9 +10,9 @@ export async function getTenants() {
   }
 }
 
-export async function createTenant(name) {
+export async function createTenant(name, owner_password) {
   try {
-    const response = await apiClient.post('/tenant/tenants', { name })
+    const response = await apiClient.post('/tenant/tenants', { name, owner_password })
     return response.data?.tenant
   } catch (error) {
     throw new Error(getErrorMessage(error, 'Tenant creation failed'))

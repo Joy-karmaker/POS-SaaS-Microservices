@@ -16,7 +16,7 @@ final class AuthUserResource extends JsonResource
 
         return [
             'id' => (string) data_get($this->resource, 'id', ''),
-            'email' => (string) data_get($this->resource, 'email', ''),
+            'username' => (string) data_get($this->resource, 'username', ''),
             'role' => (string) data_get($this->resource, 'role', ''),
             'tenant_id' => data_get($this->resource, 'tenant_id'),
             'created_at' => $createdAt instanceof DateTimeInterface

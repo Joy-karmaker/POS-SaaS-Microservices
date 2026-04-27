@@ -19,6 +19,7 @@ final class StoreTenantRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
+            'owner_password' => ['required', 'string', 'min:8', 'max:255'],
         ];
     }
 

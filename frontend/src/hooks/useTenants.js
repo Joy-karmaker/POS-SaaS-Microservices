@@ -7,14 +7,18 @@ function getErrorMessage(error, fallback = 'Unknown error') {
 
 export function useTenants({ enabled = true } = {}) {
   const [tenantName, setTenantName] = useState('')
+  const [ownerPassword, setOwnerPassword] = useState('')
   const [recentTenants, setRecentTenants] = useState([])
   const [tenantError, setTenantError] = useState('')
   const [isCreatingTenant, setIsCreatingTenant] = useState(false)
   const [isLoadingTenants, setIsLoadingTenants] = useState(false)
 
   const canCreateTenant = useMemo(() => {
-    return enabled && tenantName.trim().length >= 2 && !isCreatingTenant
-  }, [enabled, tenantName, isCreatingTenant])
+    return enabled && 
+      tenantName.trim().length >= 2 && 
+      ownerPassword.length >= 8 &&
+      !isCreatingTenant
+  }, [enabled, tenantName, ownerPassword, isCreatingTenant])
 
   const loadTenants = useCallback(async () => {
     if (!enabled) {
@@ -45,6 +49,7 @@ export function useTenants({ enabled = true } = {}) {
 
     setRecentTenants([])
     setTenantName('')
+    setOwnerPassword('')
     setTenantError('')
   }, [enabled, loadTenants])
 
@@ -57,9 +62,10 @@ export function useTenants({ enabled = true } = {}) {
     setTenantError('')
 
     try {
-      const tenant = await createTenant(tenantName.trim())
+      const tenant = await createTenant(tenantName.trim(), ownerPassword)
       setRecentTenants((current) => [tenant, ...current].slice(0, 5))
       setTenantName('')
+      setOwnerPassword('')
       return true
     } catch (error) {
       setTenantError(getErrorMessage(error))
@@ -67,11 +73,13 @@ export function useTenants({ enabled = true } = {}) {
     } finally {
       setIsCreatingTenant(false)
     }
-  }, [canCreateTenant, tenantName])
+  }, [canCreateTenant, tenantName, ownerPassword])
 
   return {
     tenantName,
     setTenantName,
+    ownerPassword,
+    setOwnerPassword,
     recentTenants,
     tenantError,
     isCreatingTenant,

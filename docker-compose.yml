@@ -46,6 +46,8 @@ services:
     build:
       context: ./services/tenant-service-laravel
     container_name: tenant-service
+    volumes:
+      - ./services/tenant-service-laravel:/app
     environment:
       APP_ENV: local
       APP_DEBUG: true
@@ -97,6 +99,8 @@ services:
     build:
       context: ./services/auth-service-laravel
     container_name: auth-service
+    volumes:
+      - ./services/auth-service-laravel:/app
     environment:
       APP_ENV: local
       APP_DEBUG: true

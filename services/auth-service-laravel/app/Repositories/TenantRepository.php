@@ -45,4 +45,13 @@ final class TenantRepository
             ->where('id', trim($tenantId))
             ->exists();
     }
+
+    public function findById(string $tenantId): ?object
+    {
+        return DB::connection()
+            ->table('tenants')
+            ->select(['id', 'name'])
+            ->where('id', trim($tenantId))
+            ->first();
+    }
 }
