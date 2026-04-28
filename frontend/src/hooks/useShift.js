@@ -51,13 +51,18 @@ export function useShift() {
     refreshCurrentShift()
   }, [refreshCurrentShift, selectedStoreId])
 
+  const hasStoreSelected = useMemo(() => {
+    const idStr = String(selectedStoreId ?? '').trim()
+    return idStr !== '' && idStr !== '0'
+  }, [selectedStoreId])
+
   const canOpenShift = useMemo(() => {
-    return selectedStoreId.trim() !== '' && !isOpeningShift && currentShift === null
-  }, [currentShift, isOpeningShift, selectedStoreId])
+    return hasStoreSelected && !isOpeningShift && currentShift === null
+  }, [currentShift, isOpeningShift, hasStoreSelected])
 
   const canCloseShift = useMemo(() => {
-    return selectedStoreId.trim() !== '' && !isClosingShift && currentShift !== null
-  }, [currentShift, isClosingShift, selectedStoreId])
+    return hasStoreSelected && !isClosingShift && currentShift !== null
+  }, [currentShift, isClosingShift, hasStoreSelected])
 
   const openCurrentShift = useCallback(async () => {
     if (!canOpenShift) {

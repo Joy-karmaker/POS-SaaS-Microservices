@@ -15,8 +15,8 @@ final class StoreResource extends JsonResource
         $createdAt = data_get($this->resource, 'created_at');
 
         return [
-            'id' => (string) data_get($this->resource, 'id', ''),
-            'tenant_id' => (string) data_get($this->resource, 'tenant_id', ''),
+            'id' => (int) data_get($this->resource, 'id', 0),
+            'tenant_id' => (int) data_get($this->resource, 'tenant_id', 0),
             'name' => (string) data_get($this->resource, 'name', ''),
             'code' => (string) data_get($this->resource, 'code', ''),
             'created_at' => $createdAt instanceof DateTimeInterface

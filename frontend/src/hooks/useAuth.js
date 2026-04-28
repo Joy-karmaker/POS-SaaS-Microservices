@@ -6,6 +6,7 @@ import {
   logout as logoutRequest,
   refreshSession as refreshSessionRequest,
 } from '../api/authApi'
+import { getTenantProfile } from '../api/staffApi'
 import { clearAuthSession, loadAuthSession, saveAuthSession } from '../api/authStorage'
 
 function roleLabel(role) {
@@ -22,6 +23,7 @@ function roleLabel(role) {
 
 export function useAuth() {
   const [user, setUser] = useState(null)
+  const [tenantProfile, setTenantProfile] = useState(null)
   const [authError, setAuthError] = useState('')
   const [isLoadingSession, setIsLoadingSession] = useState(true)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
@@ -29,6 +31,7 @@ export function useAuth() {
 
   const clearSession = useCallback(() => {
     setUser(null)
+    setTenantProfile(null)
     clearAuthSession()
   }, [])
 
@@ -47,6 +50,17 @@ export function useAuth() {
     }
   }, [clearSession])
 
+  const fetchProfile = useCallback(async () => {
+    try {
+      const p = await getTenantProfile()
+      setTenantProfile(p)
+      return p
+    } catch {
+      setTenantProfile(null)
+      return null
+    }
+  }, [])
+
   useEffect(() => {
     const session = loadAuthSession()
     if (!session) {
@@ -57,6 +71,11 @@ export function useAuth() {
     ;(async () => {
       try {
         applySession(session.user)
+        
+        // Load tenant profile if user is in tenant scope
+        if (session.user.role !== 'platform_admin') {
+          await fetchProfile()
+        }
 
         const currentUser = await getMe()
         if (!currentUser) {
@@ -72,6 +91,9 @@ export function useAuth() {
           }
 
           applySession(refreshed.user)
+          if (refreshed.user.role !== 'platform_admin') {
+            await fetchProfile()
+          }
         } catch {
           clearSession()
         }
@@ -79,7 +101,7 @@ export function useAuth() {
         setIsLoadingSession(false)
       }
     })()
-  }, [applySession, clearSession])
+  }, [applySession, clearSession, fetchProfile])
 
   const login = useCallback(async ({ username, password, tenantId = null, allowedRoles = [] }) => {
     setIsLoggingIn(true)
@@ -100,6 +122,11 @@ export function useAuth() {
       }
 
       applySession(result.user)
+      
+      // Fetch profile immediately after login for tenant users
+      if (role !== 'platform_admin') {
+        await fetchProfile()
+      }
 
       return result.user
     } catch (error) {
@@ -109,7 +136,7 @@ export function useAuth() {
     } finally {
       setIsLoggingIn(false)
     }
-  }, [applySession])
+  }, [applySession, fetchProfile])
 
   const logout = useCallback(async () => {
     const hasUser = user !== null
@@ -150,6 +177,7 @@ export function useAuth() {
 
   return {
     user,
+    tenantProfile,
     authError,
     isAuthenticated,
     isLoadingSession,

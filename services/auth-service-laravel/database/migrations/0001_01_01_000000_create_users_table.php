@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('tenant_id')->nullable()->index();
+            $table->id(); // integer auto-increment
+            $table->unsignedBigInteger('tenant_id')->nullable()->index();
             $table->string('username');
             $table->string('password');
             $table->string('role')->default('user');

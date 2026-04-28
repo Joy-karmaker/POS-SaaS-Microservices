@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { createStaffUser, getStaffUsers } from '../api/staffApi'
+import { createStaffUser, getStaffUsers, getStaffRoles } from '../api/staffApi'
 import { getErrorMessage } from '../api/httpUtils'
 
 export function useStaffUsers({ enabled = true } = {}) {
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [storeId, setStoreId] = useState('')
+  const [roleId, setRoleId] = useState('')
   const [password, setPassword] = useState('')
   const [users, setUsers] = useState([])
+  const [roles, setRoles] = useState([])
   const [error, setError] = useState('')
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false)
   const [isCreatingUser, setIsCreatingUser] = useState(false)
 
   const refreshUsers = useCallback(async () => {
@@ -32,18 +37,43 @@ export function useStaffUsers({ enabled = true } = {}) {
     }
   }, [enabled])
 
+  const refreshRoles = useCallback(async () => {
+    if (!enabled) {
+      setRoles([])
+      return []
+    }
+
+    setIsLoadingRoles(true)
+
+    try {
+      const rows = await getStaffRoles()
+      setRoles(rows)
+      return rows
+    } catch (loadError) {
+      console.error('Failed to load roles:', loadError)
+      setRoles([])
+      return []
+    } finally {
+      setIsLoadingRoles(false)
+    }
+  }, [enabled])
+
   useEffect(() => {
     refreshUsers()
-  }, [refreshUsers])
+    refreshRoles()
+  }, [refreshUsers, refreshRoles])
 
   const canCreateUser = useMemo(() => {
     return (
       enabled &&
-      email.trim().length >= 5 &&
+      username.trim().length >= 2 &&
+      fullName.trim().length >= 2 &&
+      storeId !== '' &&
+      roleId !== '' &&
       password.trim().length >= 8 &&
       !isCreatingUser
     )
-  }, [email, enabled, isCreatingUser, password])
+  }, [username, fullName, storeId, roleId, enabled, isCreatingUser, password])
 
   const submitUser = useCallback(async () => {
     if (!canCreateUser) {
@@ -55,9 +85,11 @@ export function useStaffUsers({ enabled = true } = {}) {
 
     try {
       const created = await createStaffUser({
-        email: email.trim(),
+        username: username.trim(),
+        full_name: fullName.trim(),
+        store_id: storeId,
+        role_id: roleId,
         password: password.trim(),
-        role: 'user',
       })
 
       if (!created) {
@@ -65,7 +97,10 @@ export function useStaffUsers({ enabled = true } = {}) {
       }
 
       setUsers((current) => [created, ...current])
-      setEmail('')
+      setUsername('')
+      setFullName('')
+      setStoreId('')
+      setRoleId('')
       setPassword('')
       return created
     } catch (createError) {
@@ -74,16 +109,24 @@ export function useStaffUsers({ enabled = true } = {}) {
     } finally {
       setIsCreatingUser(false)
     }
-  }, [canCreateUser, email, password])
+  }, [canCreateUser, username, fullName, storeId, roleId, password])
 
   return {
-    email,
-    setEmail,
+    username,
+    setUsername,
+    fullName,
+    setFullName,
+    storeId,
+    setStoreId,
+    roleId,
+    setRoleId,
     password,
     setPassword,
     users,
+    roles,
     error,
     isLoadingUsers,
+    isLoadingRoles,
     isCreatingUser,
     canCreateUser,
     refreshUsers,

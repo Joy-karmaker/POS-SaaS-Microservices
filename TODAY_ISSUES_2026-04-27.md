@@ -38,6 +38,8 @@ This document summarizes the issues identified and resolved during the refinemen
 
 ---
 
+---
+
 ## 2. Docker Inspection Commands
 
 These commands were used to diagnose the system state and verify fixes.

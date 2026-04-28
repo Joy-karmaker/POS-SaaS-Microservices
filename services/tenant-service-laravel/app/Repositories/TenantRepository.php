@@ -38,11 +38,19 @@ final class TenantRepository
             ->exists();
     }
 
-    public function existsById(string $tenantId): bool
+    public function existsById(int|string $tenantId): bool
     {
         return DB::connection()
             ->table('tenants')
-            ->where('id', trim($tenantId))
+            ->where('id', $tenantId)
             ->exists();
+    }
+
+    public function findById(int|string $tenantId): ?object
+    {
+        return DB::connection()
+            ->table('tenants')
+            ->where('id', $tenantId)
+            ->first();
     }
 }

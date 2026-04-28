@@ -28,8 +28,8 @@ final class ShiftController extends Controller
 
         try {
             $shift = $shiftService->open(
-                $actor['tenant_id'],
-                $actor['user_id'],
+                (string)$actor['tenant_id'],
+                (string)$actor['user_id'],
                 (string) $request->validated('store_id'),
                 $request->validated('opening_balance')
             );
@@ -60,8 +60,8 @@ final class ShiftController extends Controller
 
         try {
             $shift = $shiftService->close(
-                $actor['tenant_id'],
-                $actor['user_id'],
+                (string)$actor['tenant_id'],
+                (string)$actor['user_id'],
                 (string) $request->validated('store_id'),
                 $request->validated('closing_balance')
             );
@@ -90,8 +90,8 @@ final class ShiftController extends Controller
 
         try {
             $shift = $shiftService->current(
-                $actor['tenant_id'],
-                $actor['user_id'],
+                (string)$actor['tenant_id'],
+                (string)$actor['user_id'],
                 (string) $request->validated('store_id')
             );
         } catch (StoreNotFoundException $exception) {
@@ -120,16 +120,16 @@ final class ShiftController extends Controller
             return null;
         }
 
-        $userId = trim((string) ($claims['sub'] ?? ''));
-        $tenantId = trim((string) ($claims['tenant_id'] ?? ''));
+        $userId = $claims['sub'] ?? null;
+        $tenantId = $claims['tenant_id'] ?? null;
 
-        if ($userId === '' || $tenantId === '') {
+        if ($userId === null || $tenantId === null) {
             return null;
         }
 
         return [
-            'user_id' => $userId,
-            'tenant_id' => $tenantId,
+            'user_id' => (int)$userId,
+            'tenant_id' => (int)$tenantId,
         ];
     }
 

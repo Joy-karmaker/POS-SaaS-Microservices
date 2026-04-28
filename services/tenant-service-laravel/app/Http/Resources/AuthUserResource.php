@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
-use DateTimeInterface;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,16 +11,14 @@ final class AuthUserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $createdAt = data_get($this->resource, 'created_at');
-
         return [
-            'id' => (string) data_get($this->resource, 'id', ''),
-            'email' => (string) data_get($this->resource, 'email', ''),
+            'id' => (int) data_get($this->resource, 'id', 0),
+            'tenant_id' => data_get($this->resource, 'tenant_id') !== null 
+                ? (int) $this->resource->tenant_id 
+                : null,
+            'username' => (string) data_get($this->resource, 'username', ''),
             'role' => (string) data_get($this->resource, 'role', ''),
-            'tenant_id' => data_get($this->resource, 'tenant_id'),
-            'created_at' => $createdAt instanceof DateTimeInterface
-                ? $createdAt->format('Y-m-d H:i:s')
-                : (string) $createdAt,
+            'created_at' => (string) data_get($this->resource, 'created_at', ''),
         ];
     }
 }

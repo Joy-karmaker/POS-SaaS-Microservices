@@ -17,7 +17,7 @@ final class StaffUserResource extends JsonResource
         return [
             'id' => (string) data_get($this->resource, 'id', ''),
             'tenant_id' => data_get($this->resource, 'tenant_id'),
-            'email' => (string) data_get($this->resource, 'email', ''),
+            'username' => (string) data_get($this->resource, 'username', ''),
             'role' => (string) data_get($this->resource, 'role', ''),
             'created_at' => $createdAt instanceof DateTimeInterface
                 ? $createdAt->format('Y-m-d H:i:s')

@@ -15,7 +15,7 @@ final class TenantResource extends JsonResource
         $createdAt = data_get($this->resource, 'created_at');
 
         return [
-            'id' => (string) data_get($this->resource, 'id', ''),
+            'id' => (int) data_get($this->resource, 'id', 0),
             'name' => (string) data_get($this->resource, 'name', ''),
             'db_name' => (string) data_get($this->resource, 'db_name', ''),
             'db_username' => (string) data_get($this->resource, 'db_username', ''),

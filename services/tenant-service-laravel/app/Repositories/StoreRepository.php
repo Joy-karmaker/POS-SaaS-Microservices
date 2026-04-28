@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Services\CoreSchemaService;
+use App\Services\TenantConnectionManager;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -12,15 +12,17 @@ use Illuminate\Support\Str;
 final class StoreRepository
 {
     public function __construct(
-        private readonly CoreSchemaService $schemaService
+        private readonly TenantConnectionManager $connectionManager
     ) {
     }
 
-    public function all(?string $tenantId = null): Collection
+    public function all(int|string|null $tenantId = null): Collection
     {
-        $this->schemaService->ensureStoresTable();
+        if ($tenantId !== null) {
+            $this->connectionManager->switch((string)$tenantId);
+        }
 
-        $query = DB::connection()
+        $query = DB::connection('tenant')
             ->table('stores')
             ->select([
                 'id',
@@ -31,8 +33,8 @@ final class StoreRepository
             ])
             ->orderByDesc('created_at');
 
-        if ($tenantId !== null && trim($tenantId) !== '') {
-            $query->where('tenant_id', trim($tenantId));
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
         }
 
         return $query->get();
@@ -40,18 +42,22 @@ final class StoreRepository
 
     public function create(array $payload): object
     {
-        $this->schemaService->ensureStoresTable();
+        $tenantId = $payload['tenant_id'] ?? '';
+        if ($tenantId !== '') {
+            $this->connectionManager->switch((string)$tenantId);
+        }
 
-        DB::connection()->table('stores')->insert($payload);
-
+        $id = DB::connection('tenant')->table('stores')->insertGetId($payload);
+        
+        $payload['id'] = $id;
         return (object) $payload;
     }
 
-    public function findByIdForTenant(string $storeId, string $tenantId): ?object
+    public function findByIdForTenant(int|string $storeId, int|string $tenantId): ?object
     {
-        $this->schemaService->ensureStoresTable();
+        $this->connectionManager->switch((string)$tenantId);
 
-        return DB::connection()
+        return DB::connection('tenant')
             ->table('stores')
             ->select([
                 'id',
@@ -65,13 +71,13 @@ final class StoreRepository
             ->first();
     }
 
-    public function existsByCode(string $tenantId, string $code): bool
+    public function existsByCode(int|string $tenantId, string $code): bool
     {
-        $this->schemaService->ensureStoresTable();
+        $this->connectionManager->switch((string)$tenantId);
 
-        return DB::connection()
+        return DB::connection('tenant')
             ->table('stores')
-            ->where('tenant_id', trim($tenantId))
+            ->where('tenant_id', $tenantId)
             ->whereRaw('LOWER(code) = ?', [Str::lower(trim($code))])
             ->exists();
     }

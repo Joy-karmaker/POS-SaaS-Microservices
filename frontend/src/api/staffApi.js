@@ -10,12 +10,33 @@ export async function getStaffUsers() {
   }
 }
 
-export async function createStaffUser({ email, password, role }) {
+export async function getStaffRoles() {
+  try {
+    const response = await apiClient.get('/tenant/users/roles')
+    return Array.isArray(response.data?.roles) ? response.data.roles : []
+  } catch (error) {
+    throw new Error(getErrorMessage(error, 'Failed to load staff roles'))
+  }
+}
+
+export async function getTenantProfile() {
+  try {
+    const response = await apiClient.get('/tenant/users/me')
+    return response.data?.profile ?? null
+  } catch (error) {
+    console.error('Failed to load tenant profile:', error)
+    return null
+  }
+}
+
+export async function createStaffUser({ username, full_name, store_id, role_id, password }) {
   try {
     const response = await apiClient.post('/tenant/users', {
-      email,
+      username,
+      full_name,
+      store_id,
+      role_id,
       password,
-      role,
     })
 
     return response.data?.user ?? null

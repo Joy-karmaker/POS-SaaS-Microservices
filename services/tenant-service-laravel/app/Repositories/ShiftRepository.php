@@ -4,30 +4,32 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
-use App\Services\CoreSchemaService;
+use App\Services\TenantConnectionManager;
 use Illuminate\Support\Facades\DB;
 
 final class ShiftRepository
 {
     public function __construct(
-        private readonly CoreSchemaService $schemaService
+        private readonly TenantConnectionManager $connectionManager
     ) {
     }
 
     public function create(array $payload): object
     {
-        $this->schemaService->ensureShiftsTable();
+        $tenantId = $payload['tenant_id'] ?? '';
+        if ($tenantId !== '') {
+            $this->connectionManager->switch((string)$tenantId);
+        }
 
-        DB::connection()->table('shifts')->insert($payload);
-
+        $id = DB::connection('tenant')->table('shifts')->insertGetId($payload);
+        
+        $payload['id'] = $id;
         return (object) $payload;
     }
 
-    public function findById(string $shiftId): ?object
+    public function findById(int|string $shiftId): ?object
     {
-        $this->schemaService->ensureShiftsTable();
-
-        return DB::connection()
+        return DB::connection('tenant')
             ->table('shifts')
             ->select([
                 'id',
@@ -44,11 +46,11 @@ final class ShiftRepository
             ->first();
     }
 
-    public function findActiveForUserStore(string $tenantId, string $userId, string $storeId): ?object
+    public function findActiveForUserStore(int|string $tenantId, int|string $userId, int|string $storeId): ?object
     {
-        $this->schemaService->ensureShiftsTable();
+        $this->connectionManager->switch((string)$tenantId);
 
-        return DB::connection()
+        return DB::connection('tenant')
             ->table('shifts')
             ->select([
                 'id',
@@ -69,11 +71,11 @@ final class ShiftRepository
             ->first();
     }
 
-    public function closeById(string $shiftId, string $closedAt, ?string $closingBalance): void
+    public function closeById(int|string $shiftId, int|string $tenantId, string $closedAt, ?string $closingBalance): void
     {
-        $this->schemaService->ensureShiftsTable();
+        $this->connectionManager->switch((string)$tenantId);
 
-        DB::connection()
+        DB::connection('tenant')
             ->table('shifts')
             ->where('id', $shiftId)
             ->update([

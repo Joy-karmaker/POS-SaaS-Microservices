@@ -16,11 +16,10 @@ final class TenantProvisioningPayloadFactory
             throw new RuntimeException('Tenant name is required.');
         }
 
-        $tenantId = (string) Str::uuid();
-        $suffix = substr(str_replace('-', '', $tenantId), 0, 6);
+        // We use a random suffix for database/user names to avoid collisions
+        $suffix = Str::lower(Str::random(6));
 
         return [
-            'id' => $tenantId,
             'name' => $tenantName,
             'db_name' => $this->buildDatabaseName($tenantName, $suffix),
             'db_username' => $this->buildDatabaseUser($tenantName, $suffix),

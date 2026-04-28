@@ -19,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\RequireRole::class,
         ]);
 
+        $middleware->encryptCookies(except: [
+            'pos_access_token',
+            'pos_refresh_token',
+        ]);
+
         $middleware->validateCsrfTokens(except: [
             'auth/*',
         ]);

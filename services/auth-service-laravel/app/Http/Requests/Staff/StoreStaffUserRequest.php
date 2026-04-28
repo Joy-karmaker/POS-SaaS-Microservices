@@ -18,7 +18,7 @@ final class StoreStaffUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'tenant_id' => ['nullable', 'uuid'],
+            'tenant_id' => ['nullable', 'integer'],
             'username' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'max:255'],
             'role' => ['required', 'string', 'in:tenant_admin,user'],

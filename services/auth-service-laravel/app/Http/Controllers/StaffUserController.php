@@ -28,15 +28,15 @@ final class StaffUserController extends Controller
         $tenantIdFilter = null;
 
         if ($role === 'platform_admin') {
-            $tenantIdQuery = trim((string) $request->query('tenant_id', ''));
-            if ($tenantIdQuery !== '') {
-                if (!Str::isUuid($tenantIdQuery)) {
-                    return $this->jsonError('The tenant_id field must be a valid UUID.', 422);
+            $tenantIdQuery = $request->query('tenant_id');
+            if ($tenantIdQuery !== null) {
+                if (!is_numeric($tenantIdQuery)) {
+                    return $this->jsonError('The tenant_id field must be a valid integer.', 422);
                 }
 
-                $tenantIdFilter = $tenantIdQuery;
+                $tenantIdFilter = (int)$tenantIdQuery;
             }
-        } elseif ($role === 'tenant_admin') {
+        } elseif ($role === 'tenant_admin' || $role === 'user') {
             $tenantIdFilter = $this->readTenantId($claims);
             if ($tenantIdFilter === null) {
                 return $this->jsonError('Forbidden.', 403);
@@ -93,7 +93,7 @@ final class StaffUserController extends Controller
         try {
             $user = $staffUserService->create(
                 $tenantId,
-                (string) $request->validated('email'),
+                (string) $request->validated('username'),
                 (string) $request->validated('password'),
                 $targetRole
             );
@@ -122,11 +122,10 @@ final class StaffUserController extends Controller
         return is_array($claims) ? $claims : null;
     }
 
-    private function readTenantId(array $claims): ?string
+    private function readTenantId(array $claims): ?int
     {
-        $tenantId = trim((string) ($claims['tenant_id'] ?? ''));
-
-        return $tenantId === '' ? null : $tenantId;
+        $tenantId = $claims['tenant_id'] ?? null;
+        return $tenantId !== null ? (int) $tenantId : null;
     }
 
     private function jsonError(string $message, int $status): JsonResponse

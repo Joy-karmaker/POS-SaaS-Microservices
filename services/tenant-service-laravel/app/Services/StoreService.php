@@ -20,15 +20,14 @@ final class StoreService
     ) {
     }
 
-    public function all(?string $tenantId = null): Collection
+    public function all(int|string|null $tenantId = null): Collection
     {
         return $this->storeRepository->all($tenantId);
     }
 
-    public function create(string $tenantId, string $name, ?string $inputCode = null): object
+    public function create(int|string $tenantId, string $name, ?string $inputCode = null): object
     {
-        $normalizedTenantId = trim($tenantId);
-        if ($normalizedTenantId === '' || !$this->tenantRepository->existsById($normalizedTenantId)) {
+        if (!$this->tenantRepository->existsById($tenantId)) {
             throw new StoreNotFoundException('Tenant not found.');
         }
 
@@ -37,19 +36,18 @@ final class StoreService
             throw new RuntimeException('Store name is required.');
         }
 
-        $code = $this->resolveCode($normalizedTenantId, $normalizedName, $inputCode);
+        $code = $this->resolveCode($tenantId, $normalizedName, $inputCode);
         $createdAt = now('UTC')->format('Y-m-d H:i:s');
 
         return $this->storeRepository->create([
-            'id' => (string) Str::uuid(),
-            'tenant_id' => $normalizedTenantId,
+            'tenant_id' => $tenantId,
             'name' => $normalizedName,
             'code' => $code,
             'created_at' => $createdAt,
         ]);
     }
 
-    private function resolveCode(string $tenantId, string $storeName, ?string $inputCode): string
+    private function resolveCode(int|string $tenantId, string $storeName, ?string $inputCode): string
     {
         $providedCode = $this->sanitizeCode($inputCode ?? '');
         if ($providedCode !== '') {
@@ -71,7 +69,7 @@ final class StoreService
         $baseCode = substr($baseCode, 0, 24);
 
         for ($attempt = 0; $attempt < 8; $attempt++) {
-            $suffix = strtoupper(substr(str_replace('-', '', (string) Str::uuid()), 0, 6));
+            $suffix = strtoupper(Str::random(6));
             $candidate = substr($baseCode . '_' . $suffix, 0, 32);
 
             if (!$this->storeRepository->existsByCode($tenantId, $candidate)) {

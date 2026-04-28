@@ -20,15 +20,14 @@ final class StaffUserService
     ) {
     }
 
-    public function list(?string $tenantId = null): Collection
+    public function list(int|string|null $tenantId = null): Collection
     {
         return $this->userRepository->allByTenant($tenantId);
     }
 
-    public function create(string $tenantId, ?string $usernameInput, string $password, string $role): object
+    public function create(int|string $tenantId, ?string $usernameInput, string $password, string $role): object
     {
-        $normalizedTenantId = trim($tenantId);
-        $tenant = $this->tenantRepository->findById($normalizedTenantId);
+        $tenant = $this->tenantRepository->findById($tenantId);
         
         if ($tenant === null) {
             throw new TenantNotFoundException('Tenant not found.');
@@ -39,7 +38,7 @@ final class StaffUserService
         $suffix = $usernameInput ? Str::slug($usernameInput, '') : strtolower(trim($role));
         $username = sprintf('%s.%s', $cleanShopName, $suffix);
 
-        if ($this->userRepository->findByUsername($username, $normalizedTenantId) !== null) {
+        if ($this->userRepository->findByUsername($username, $tenantId) !== null) {
             throw new DuplicateUserEmailException(sprintf(
                 'User with username "%s" already exists for this tenant.',
                 $username
@@ -47,7 +46,7 @@ final class StaffUserService
         }
 
         return $this->userRepository->createTenantUser(
-            $normalizedTenantId,
+            $tenantId,
             $username,
             Hash::make($password ?? 'password123'),
             $role

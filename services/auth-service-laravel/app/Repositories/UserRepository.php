@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 final class UserRepository
 {
-    public function findByUsername(string $username, ?string $tenantId = null): ?object
+    public function findByUsername(string $username, int|string|null $tenantId = null): ?object
     {
         $query = DB::connection()
             ->table('users')
@@ -20,13 +20,13 @@ final class UserRepository
         if ($tenantId === null) {
             $query->whereNull('tenant_id');
         } else {
-            $query->where('tenant_id', trim($tenantId));
+            $query->where('tenant_id', $tenantId);
         }
 
         return $query->first();
     }
 
-    public function findById(string $id): ?object
+    public function findById(int|string $id): ?object
     {
         return DB::connection()
             ->table('users')
@@ -45,28 +45,27 @@ final class UserRepository
 
     public function createPlatformAdmin(string $username, string $passwordHash): object
     {
-        $record = (object) [
-            'id' => (string) Str::uuid(),
+        $now = now('UTC')->format('Y-m-d H:i:s');
+        
+        $id = DB::connection()->table('users')->insertGetId([
             'tenant_id' => null,
             'username' => Str::lower(trim($username)),
             'password' => $passwordHash,
             'role' => 'platform_admin',
-            'created_at' => now('UTC')->format('Y-m-d H:i:s'),
-        ];
-
-        DB::connection()->table('users')->insert([
-            'id' => $record->id,
-            'tenant_id' => $record->tenant_id,
-            'username' => $record->username,
-            'password' => $record->password,
-            'role' => $record->role,
-            'created_at' => $record->created_at,
+            'created_at' => $now,
         ]);
 
-        return $record;
+        return (object) [
+            'id' => $id,
+            'tenant_id' => null,
+            'username' => Str::lower(trim($username)),
+            'password' => $passwordHash,
+            'role' => 'platform_admin',
+            'created_at' => $now,
+        ];
     }
 
-    public function allByTenant(?string $tenantId = null): Collection
+    public function allByTenant(int|string|null $tenantId = null): Collection
     {
         $query = DB::connection()
             ->table('users')
@@ -74,37 +73,36 @@ final class UserRepository
             ->whereIn('role', ['tenant_admin', 'user'])
             ->orderByDesc('created_at');
 
-        if ($tenantId !== null && trim($tenantId) !== '') {
-            $query->where('tenant_id', trim($tenantId));
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
         }
 
         return $query->get();
     }
 
     public function createTenantUser(
-        string $tenantId,
+        int|string $tenantId,
         string $username,
         string $passwordHash,
         string $role
     ): object {
-        $record = (object) [
-            'id' => (string) Str::uuid(),
-            'tenant_id' => trim($tenantId),
+        $now = now('UTC')->format('Y-m-d H:i:s');
+
+        $id = DB::connection()->table('users')->insertGetId([
+            'tenant_id' => $tenantId,
             'username' => Str::lower(trim($username)),
             'password' => $passwordHash,
             'role' => trim($role),
-            'created_at' => now('UTC')->format('Y-m-d H:i:s'),
-        ];
-
-        DB::connection()->table('users')->insert([
-            'id' => $record->id,
-            'tenant_id' => $record->tenant_id,
-            'username' => $record->username,
-            'password' => $record->password,
-            'role' => $record->role,
-            'created_at' => $record->created_at,
+            'created_at' => $now,
         ]);
 
-        return $record;
+        return (object) [
+            'id' => $id,
+            'tenant_id' => $tenantId,
+            'username' => Str::lower(trim($username)),
+            'password' => $passwordHash,
+            'role' => trim($role),
+            'created_at' => $now,
+        ];
     }
 }
