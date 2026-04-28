@@ -18,7 +18,7 @@ final class CurrentShiftRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'store_id' => ['required', 'uuid'],
+            'store_id' => ['required', 'integer'],
         ];
     }
 

@@ -21,7 +21,7 @@ const PHASE_STEPS = [
 function App() {
   const auth = useAuth()
   const isPlatformAdmin = auth.user?.role === 'platform_admin'
-  const fallbackPath = auth.isAuthenticated ? getHomePathByRole(auth.user?.role) : '/admin/login'
+  const fallbackPath = auth.isAuthenticated ? getHomePathByRole(auth.user?.role, auth.tenantProfile) : '/admin/login'
 
   return (
     <div className="app-shell">
@@ -45,12 +45,12 @@ function App() {
       {auth.isAuthenticated ? (
         <section className="session-strip" aria-label="Current session">
           <div>
-            <strong>{auth.user?.email}</strong>
-            <span className="role-chip">{auth.user?.role}</span>
+            <strong>{auth.user?.username || auth.user?.email}</strong>
+            <span className="role-chip">{auth.tenantProfile?.role_name || auth.user?.role}</span>
             <p className="muted inline">
               {isPlatformAdmin
                 ? 'Platform scope: tenant management endpoints available.'
-                : 'Tenant scope: dashboard, stores, shift, and staff modules.'}
+                : `Tenant scope: ${auth.tenantProfile?.full_name || 'User'}`}
             </p>
           </div>
           <div className="card-head">
@@ -88,7 +88,8 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
-              allowedRoles={['tenant_admin', 'user']}
+              allowedRoles={['tenant_admin']}
+              allowedBusinessRoles={['admin']}
               loginPath="/app/login"
             >
               <TenantDashboardPage user={auth.user} />
@@ -104,6 +105,7 @@ function App() {
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
               allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager']}
               loginPath="/app/login"
             >
               <TenantStoresPage user={auth.user} />
@@ -119,6 +121,7 @@ function App() {
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
               allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager', 'cashier']}
               loginPath="/app/login"
             >
               <TenantShiftPage />
@@ -133,7 +136,8 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
-              allowedRoles={['tenant_admin']}
+              allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager', 'staff']}
               loginPath="/app/login"
             >
               <TenantStaffPage user={auth.user} />
@@ -141,7 +145,7 @@ function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to={fallbackPath} replace />} />
+        <Route path="*" element={<Navigate to={getHomePathByRole(auth.user?.role, auth.tenantProfile)} replace />} />
       </Routes>
     </div>
   )

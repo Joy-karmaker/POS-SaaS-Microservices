@@ -12,6 +12,7 @@ use App\Services\TenantProvisioning\TenantSchemaProvisioner;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -67,8 +68,8 @@ class TenantProvisioningService
 
             $this->schemaProvisioner->provision($tenantConnection);
 
+            // Insert into tenants table and get the auto-generated ID
             $this->tenantRepository->create([
-                'id' => $payload['id'],
                 'name' => $payload['name'],
                 'db_name' => $payload['db_name'],
                 'db_username' => $payload['db_username'],
@@ -76,14 +77,21 @@ class TenantProvisioningService
                 'created_at' => $payload['created_at'],
             ]);
 
+            // Fetch the generated ID
+            $tenant = DB::table('tenants')->where('db_name', $payload['db_name'])->first();
+            if (!$tenant) {
+                throw new RuntimeException('Failed to retrieve newly created tenant.');
+            }
+            $tenantId = $tenant->id;
+
             // Call Auth Service to create the Owner identity
             $this->createOwnerIdentity(
-                (string) $payload['id'],
+                (int)$tenantId,
                 $ownerPassword
             );
 
             return [
-                'id' => $payload['id'],
+                'id' => $tenantId,
                 'name' => $payload['name'],
                 'db_name' => $payload['db_name'],
                 'db_username' => $payload['db_username'],
@@ -106,13 +114,12 @@ class TenantProvisioningService
         }
     }
 
-    private function createOwnerIdentity(string $tenantId, string $password): void
+    private function createOwnerIdentity(int $tenantId, string $password): void
     {
         $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth-service:8080');
         $token = request()->bearerToken();
 
         if (empty($token)) {
-            // Fallback for cookie if bearer is missing (depends on how gateway handles it)
             $token = request()->cookie('pos_access_token');
         }
 

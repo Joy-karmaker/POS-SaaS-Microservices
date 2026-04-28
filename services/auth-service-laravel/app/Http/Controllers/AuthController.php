@@ -77,15 +77,15 @@ final class AuthController extends Controller
         $user = null;
         $resolvedTenantId = $tenantId !== '' ? $tenantId : null;
 
-        // If tenantId is provided but is not a UUID, it might be a slug (shop name)
-        if ($resolvedTenantId !== null && !Str::isUuid($resolvedTenantId)) {
+        // If tenantId is provided but is not numeric, it might be a slug (shop name)
+        if ($resolvedTenantId !== null && !is_numeric($resolvedTenantId)) {
             $tenant = DB::connection('mysql')->table('tenants')
                 ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [Str::lower(trim($resolvedTenantId))])
                 ->orWhere('id', trim($resolvedTenantId))
                 ->first();
             
             if ($tenant) {
-                $resolvedTenantId = (string) $tenant->id;
+                $resolvedTenantId = $tenant->id;
             }
         }
 
@@ -93,7 +93,6 @@ final class AuthController extends Controller
         
         // If not found with the stripped username, try the full username (backwards compatibility or convention)
         if ($user === null && $resolvedTenantId !== null && !str_contains($username, '.')) {
-            // Try prefixing the username with the tenant name/slug if we resolved it
             $tenant = DB::connection('mysql')->table('tenants')->where('id', $resolvedTenantId)->first();
             if ($tenant) {
                 $prefix = Str::slug($tenant->name, '');
@@ -123,7 +122,7 @@ final class AuthController extends Controller
         }
 
         return response()->json([
-            'access_token' => $session['access_token'], // Keeping in response for backwards compatibility if needed
+            'access_token' => $session['access_token'],
             'refresh_token' => $session['refresh_token'],
             'expires_in' => $session['expires_in'],
             'refresh_expires_in' => $session['refresh_expires_in'],
@@ -147,7 +146,7 @@ final class AuthController extends Controller
             ], 401);
         }
 
-        $user = $userRepository->findById((string) $refreshTokenRecord->user_id);
+        $user = $userRepository->findById($refreshTokenRecord->user_id);
         if ($user === null) {
             $refreshTokenService->revokeById((string) $refreshTokenRecord->id);
 
@@ -190,7 +189,7 @@ final class AuthController extends Controller
             ], 401);
         }
 
-        $userId = (string) ($claims['sub'] ?? '');
+        $userId = $claims['sub'] ?? '';
         if ($userId === '') {
             return response()->json([
                 'error' => 'Unauthorized.',
@@ -200,9 +199,9 @@ final class AuthController extends Controller
         $refreshToken = trim((string) ($request->cookie('pos_refresh_token') ?? $request->validated('refresh_token') ?? ''));
 
         if ($refreshToken !== '') {
-            $refreshTokenService->revokeForUserToken($userId, $refreshToken);
+            $refreshTokenService->revokeForUserToken((string)$userId, $refreshToken);
         } else {
-            $refreshTokenService->revokeAllForUser($userId);
+            $refreshTokenService->revokeAllForUser((string)$userId);
         }
 
         $cookieAccess = cookie()->forget('pos_access_token');
@@ -222,7 +221,7 @@ final class AuthController extends Controller
             ], 401);
         }
 
-        $userId = (string) ($claims['sub'] ?? '');
+        $userId = $claims['sub'] ?? '';
         if ($userId === '') {
             return response()->json([
                 'error' => 'Unauthorized.',
@@ -247,7 +246,7 @@ final class AuthController extends Controller
         RefreshTokenService $refreshTokenService
     ): array {
         $access = $jwtService->issueAccessToken([
-            'id' => (string) $user->id,
+            'id' => $user->id,
             'role' => (string) $user->role,
             'tenant_id' => $user->tenant_id,
         ]);

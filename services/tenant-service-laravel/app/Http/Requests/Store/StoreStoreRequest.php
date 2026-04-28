@@ -20,7 +20,7 @@ final class StoreStoreRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'min:2', 'max:255'],
             'code' => ['nullable', 'string', 'min:2', 'max:32', 'regex:/^[A-Za-z0-9 _-]+$/'],
-            'tenant_id' => ['nullable', 'uuid'],
+            'tenant_id' => ['nullable', 'integer'],
         ];
     }
 

@@ -18,7 +18,7 @@ final class OpenShiftRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'store_id' => ['required', 'uuid'],
+            'store_id' => ['required', 'integer'],
             'opening_balance' => ['nullable', 'numeric', 'min:0'],
         ];
     }

@@ -25,7 +25,9 @@ export function TenantShiftPage() {
   } = useShift()
 
   useEffect(() => {
-    if (selectedStoreId.trim() === '' && stores.length > 0) {
+    // Safely check if no store is selected
+    const currentId = String(selectedStoreId ?? '').trim()
+    if (currentId === '' && stores.length > 0) {
       setSelectedStoreId(stores[0].id)
     }
   }, [selectedStoreId, setSelectedStoreId, stores])
@@ -45,6 +47,8 @@ export function TenantShiftPage() {
       await refreshCurrentShift()
     }
   }
+
+  const isStoreSelected = String(selectedStoreId ?? '').trim() !== ''
 
   return (
     <main className="content-grid">
@@ -112,7 +116,7 @@ export function TenantShiftPage() {
         {!isLoadingStores && stores.length === 0 ? (
           <p className="muted">No stores found. Create a store first from the Stores page.</p>
         ) : null}
-        {!isLoadingStores && stores.length > 0 && selectedStoreId.trim() === '' ? (
+        {!isLoadingStores && stores.length > 0 && !isStoreSelected ? (
           <p className="muted">Select a store to enable shift actions.</p>
         ) : null}
         {storeError ? <p className="error-text">{storeError}</p> : null}

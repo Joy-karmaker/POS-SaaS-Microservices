@@ -1,15 +1,25 @@
- import { TenantNav } from '../components/TenantNav'
+import { TenantNav } from '../components/TenantNav'
 import { useStaffUsers } from '../hooks/useStaffUsers'
+import { useStores } from '../hooks/useStores'
 
 export function TenantStaffPage({ user }) {
+  const { stores, isLoadingStores } = useStores({ enabled: true })
   const {
-    email,
-    setEmail,
+    username,
+    setUsername,
+    fullName,
+    setFullName,
+    storeId,
+    setStoreId,
+    roleId,
+    setRoleId,
     password,
     setPassword,
     users,
+    roles,
     error,
     isLoadingUsers,
+    isLoadingRoles,
     isCreatingUser,
     canCreateUser,
     submitUser,
@@ -24,21 +34,60 @@ export function TenantStaffPage({ user }) {
     <main className="content-grid">
       <article className="card span-2">
         <h2>Staff Management</h2>
-        <p className="muted">Create and view tenant staff users (cashier/operator role).</p>
+        <p className="muted">Create and view tenant staff users.</p>
         <TenantNav />
       </article>
 
       <article className="card">
         <h2>Create Staff User</h2>
         <form className="tenant-form" onSubmit={handleCreateUser}>
-          <label htmlFor="staffEmail">Email</label>
+          <label htmlFor="staffFullName">Full Name</label>
           <input
-            id="staffEmail"
-            type="email"
-            placeholder="cashier@example.com"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            id="staffFullName"
+            type="text"
+            placeholder="John Doe"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
           />
+
+          <label htmlFor="staffUsername">Staff Username</label>
+          <input
+            id="staffUsername"
+            type="text"
+            placeholder="e.g. cashier1 or john"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+          />
+
+          <label htmlFor="staffStore">Store Assignment</label>
+          <select
+            id="staffStore"
+            value={storeId}
+            onChange={(event) => setStoreId(event.target.value)}
+            disabled={isLoadingStores}
+          >
+            <option value="">Select a Store</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </select>
+
+          <label htmlFor="staffRole">Staff Role</label>
+          <select
+            id="staffRole"
+            value={roleId}
+            onChange={(event) => setRoleId(event.target.value)}
+            disabled={isLoadingRoles}
+          >
+            <option value="">Select a Role</option>
+            {roles.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
 
           <label htmlFor="staffPassword">Password</label>
           <input
@@ -58,11 +107,8 @@ export function TenantStaffPage({ user }) {
       </article>
 
       <article className="card">
-        <h2>Current Session</h2>
+        <h2>Stats</h2>
         <div className="session-meta">
-          <p>
-            <strong>Tenant ID:</strong> {user?.tenant_id ?? 'N/A'}
-          </p>
           <p>
             <strong>Role:</strong> {user?.role ?? 'N/A'}
           </p>
@@ -81,18 +127,18 @@ export function TenantStaffPage({ user }) {
             <table>
               <thead>
                 <tr>
-                  <th>Email</th>
+                  <th>Name</th>
+                  <th>Store</th>
                   <th>Role</th>
-                  <th>User ID</th>
                   <th>Created</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map((staffUser) => (
                   <tr key={staffUser.id}>
-                    <td>{staffUser.email}</td>
-                    <td>{staffUser.role}</td>
-                    <td>{staffUser.id}</td>
+                    <td>{staffUser.full_name}</td>
+                    <td>{staffUser.store_name ?? 'N/A'}</td>
+                    <td>{staffUser.role_name ?? 'N/A'}</td>
                     <td>{staffUser.created_at}</td>
                   </tr>
                 ))}

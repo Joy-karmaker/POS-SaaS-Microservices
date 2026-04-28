@@ -22,9 +22,9 @@ final class ShiftService
     }
 
     public function open(
-        string $tenantId,
-        string $userId,
-        string $storeId,
+        int|string $tenantId,
+        int|string $userId,
+        int|string $storeId,
         mixed $openingBalance = null
     ): object {
         $this->assertStoreBelongsToTenant($tenantId, $storeId);
@@ -37,7 +37,6 @@ final class ShiftService
         $openedAt = now('UTC')->format('Y-m-d H:i:s');
 
         return $this->shiftRepository->create([
-            'id' => (string) Str::uuid(),
             'tenant_id' => $tenantId,
             'store_id' => $storeId,
             'user_id' => $userId,
@@ -50,9 +49,9 @@ final class ShiftService
     }
 
     public function close(
-        string $tenantId,
-        string $userId,
-        string $storeId,
+        int|string $tenantId,
+        int|string $userId,
+        int|string $storeId,
         mixed $closingBalance = null
     ): object {
         $this->assertStoreBelongsToTenant($tenantId, $storeId);
@@ -64,12 +63,13 @@ final class ShiftService
 
         $closedAt = now('UTC')->format('Y-m-d H:i:s');
         $this->shiftRepository->closeById(
-            (string) $activeShift->id,
+            $activeShift->id,
+            $tenantId,
             $closedAt,
             $this->formatMoney($closingBalance, true)
         );
 
-        $updatedShift = $this->shiftRepository->findById((string) $activeShift->id);
+        $updatedShift = $this->shiftRepository->findById($activeShift->id);
 
         $finalShift = $updatedShift ?? $activeShift;
         $this->shiftClosedPublisher->publish($finalShift);
@@ -77,14 +77,14 @@ final class ShiftService
         return $finalShift;
     }
 
-    public function current(string $tenantId, string $userId, string $storeId): ?object
+    public function current(int|string $tenantId, int|string $userId, int|string $storeId): ?object
     {
         $this->assertStoreBelongsToTenant($tenantId, $storeId);
 
         return $this->shiftRepository->findActiveForUserStore($tenantId, $userId, $storeId);
     }
 
-    private function assertStoreBelongsToTenant(string $tenantId, string $storeId): void
+    private function assertStoreBelongsToTenant(int|string $tenantId, int|string $storeId): void
     {
         $store = $this->storeRepository->findByIdForTenant($storeId, $tenantId);
         if ($store === null) {

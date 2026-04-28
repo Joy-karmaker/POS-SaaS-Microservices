@@ -28,13 +28,13 @@ final class StoreController extends Controller
         $tenantIdFilter = null;
 
         if ($role === 'platform_admin') {
-            $tenantId = trim((string) $request->query('tenant_id', ''));
-            if ($tenantId !== '') {
-                if (!Str::isUuid($tenantId)) {
-                    return $this->jsonError('The tenant_id field must be a valid UUID.', 422);
+            $tenantId = $request->query('tenant_id');
+            if ($tenantId !== null) {
+                if (!is_numeric($tenantId)) {
+                    return $this->jsonError('The tenant_id field must be a valid integer.', 422);
                 }
 
-                $tenantIdFilter = $tenantId;
+                $tenantIdFilter = (int)$tenantId;
             }
         } else {
             $tenantIdFilter = $this->readTenantId($claims);
@@ -44,7 +44,7 @@ final class StoreController extends Controller
         }
 
         try {
-            $stores = $storeService->all($tenantIdFilter);
+            $stores = $storeService->all((string)$tenantIdFilter);
             $storeRows = StoreResource::collection($stores)->resolve();
 
             return response()->json([
@@ -70,8 +70,8 @@ final class StoreController extends Controller
         $tenantId = null;
 
         if ($role === 'platform_admin') {
-            $tenantId = trim((string) ($request->validated('tenant_id') ?? ''));
-            if ($tenantId === '') {
+            $tenantId = $request->validated('tenant_id');
+            if ($tenantId === null) {
                 return $this->jsonError('tenant_id is required for platform admin.', 422);
             }
         } elseif ($role === 'tenant_admin') {
@@ -85,7 +85,7 @@ final class StoreController extends Controller
 
         try {
             $store = $storeService->create(
-                $tenantId,
+                (string)$tenantId,
                 (string) $request->validated('name'),
                 $request->validated('code')
             );
@@ -114,11 +114,10 @@ final class StoreController extends Controller
         return is_array($claims) ? $claims : null;
     }
 
-    private function readTenantId(array $claims): ?string
+    private function readTenantId(array $claims): ?int
     {
-        $tenantId = trim((string) ($claims['tenant_id'] ?? ''));
-
-        return $tenantId === '' ? null : $tenantId;
+        $tenantId = $claims['tenant_id'] ?? null;
+        return $tenantId !== null ? (int) $tenantId : null;
     }
 
     private function jsonError(string $message, int $status): JsonResponse
