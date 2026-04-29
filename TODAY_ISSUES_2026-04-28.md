@@ -49,6 +49,16 @@ This document summarizes the issues identified and resolved during the refinemen
 *   **Cause**: The `StaffUserResource` in the Auth Service was still returning the `email` field instead of `username`.
 *   **Solution**: Updated `StaffUserResource` to correctly return the `username` field.
 
+### H. Platform-Wide Integer ID Migration (UUID to INT)
+*   **Issue**: UUID-based primary keys were creating complexity in URL handling and database indexing for a system of this scale.
+*   **Solution**: 
+    *   **Primary Keys**: Migrated all tables in both Auth and Tenant services to use **INT AUTO_INCREMENT** primary keys.
+    *   **Resource Alignment**: Updated all API Resources to cast IDs to integers for consistent frontend consumption.
+    *   **Bug Fixes**: 
+        *   Resolved "Store creation failed" by removing manual UUID insertion logic in `StoreService`.
+        *   Fixed "Shift not working" by updating the frontend to handle numeric IDs instead of calling `.trim()` on them.
+    *   **Database Reset**: Re-migrated the control plane and tenant databases to ensure a clean, integer-based state.
+
 ## 2. Docker Inspection Commands (Tenant DB Focus)
 
 ### Check Tenant DB Contents
