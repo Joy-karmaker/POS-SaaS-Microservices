@@ -17,6 +17,10 @@ export default defineConfig({
         target: gatewayTarget,
         changeOrigin: true,
       },
+      '/catalog': {
+        target: gatewayTarget,
+        changeOrigin: true,
+      },
       '/health': {
         target: gatewayTarget,
         changeOrigin: true,
