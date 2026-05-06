@@ -148,6 +148,39 @@ services:
     networks:
       - pos-network
 
+  catalog-service:
+    build:
+      context: ./services/catalog-service-node
+      dockerfile: Dockerfile
+    container_name: catalog-service
+    volumes:
+      - ./services/catalog-service-node:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
+      DB_HOST: ${MYSQL_HOST}
+      DB_PORT: ${MYSQL_PORT}
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    expose:
+      - "3000"
+    networks:
+      - pos-network
+
   gateway:
     image: nginx:1.27-alpine
     container_name: api-gateway
@@ -159,6 +192,7 @@ services:
     depends_on:
       - auth-service
       - tenant-service
+      - catalog-service
     networks:
       - pos-network
 
