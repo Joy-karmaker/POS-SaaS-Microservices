@@ -39,6 +39,7 @@ export function TenantNav() {
 
   const showDashboard = isOwner
   const showStores = isOwner || isManager
+  const showCatalog = isOwner || isManager
   const showStaff = isOwner || isManager || isStaff
   const showShift = isOwner || isManager || isCashier
 
@@ -52,6 +53,11 @@ export function TenantNav() {
       {showStores && (
         <NavLink to="/app/stores" className={navClassName}>
           Stores
+        </NavLink>
+      )}
+      {showCatalog && (
+        <NavLink to="/app/catalog" className={navClassName}>
+          Catalog
         </NavLink>
       )}
       {showStaff && (
