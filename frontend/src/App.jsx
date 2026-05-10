@@ -10,6 +10,7 @@ import { TenantLoginPage } from './pages/TenantLoginPage'
 import { TenantShiftPage } from './pages/TenantShiftPage'
 import { TenantStaffPage } from './pages/TenantStaffPage'
 import { TenantStoresPage } from './pages/TenantStoresPage'
+import { TenantCatalogPage } from './pages/TenantCatalogPage'
 
 const PHASE_STEPS = [
   'Phase 1: Infrastructure + Tenant Provisioning',
@@ -125,6 +126,22 @@ function App() {
               loginPath="/app/login"
             >
               <TenantShiftPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/app/catalog"
+          element={
+            <ProtectedRoute
+              isLoadingSession={auth.isLoadingSession}
+              isAuthenticated={auth.isAuthenticated}
+              user={auth.user}
+              allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager']}
+              loginPath="/app/login"
+            >
+              <TenantCatalogPage user={auth.user} />
             </ProtectedRoute>
           }
         />
