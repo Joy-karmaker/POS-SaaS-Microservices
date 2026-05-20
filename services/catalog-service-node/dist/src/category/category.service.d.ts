@@ -5,43 +5,61 @@ export declare class CategoryService {
     private prisma;
     constructor(prisma: PrismaService);
     create(tenantId: number, createCategoryDto: CreateCategoryDto): Promise<{
+        id: number;
+        tenant_id: number;
         name: string;
         description: string | null;
-        tenant_id: number;
         created_at: Date;
         updated_at: Date;
-        id: number;
     }>;
-    findAll(tenantId: number): Promise<{
+    findAll(tenantId: number, options?: {
+        page?: number;
+        limit?: number;
+    }): Promise<{
+        id: number;
+        tenant_id: number;
         name: string;
         description: string | null;
-        tenant_id: number;
         created_at: Date;
         updated_at: Date;
-        id: number;
-    }[]>;
+    }[] | {
+        data: {
+            id: number;
+            tenant_id: number;
+            name: string;
+            description: string | null;
+            created_at: Date;
+            updated_at: Date;
+        }[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
     findOne(tenantId: number, id: number): Promise<{
+        id: number;
+        tenant_id: number;
         name: string;
         description: string | null;
-        tenant_id: number;
         created_at: Date;
         updated_at: Date;
-        id: number;
     }>;
     update(tenantId: number, id: number, updateCategoryDto: UpdateCategoryDto): Promise<{
+        id: number;
+        tenant_id: number;
         name: string;
         description: string | null;
-        tenant_id: number;
         created_at: Date;
         updated_at: Date;
-        id: number;
     }>;
     remove(tenantId: number, id: number): Promise<{
+        id: number;
+        tenant_id: number;
         name: string;
         description: string | null;
-        tenant_id: number;
         created_at: Date;
         updated_at: Date;
-        id: number;
     }>;
 }

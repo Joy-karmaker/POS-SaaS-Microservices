@@ -93,7 +93,7 @@ final class StaffUserController extends Controller
         try {
             $user = $staffUserService->create(
                 $tenantId,
-                (string) $request->validated('username'),
+                (string) ($request->validated('username') ?? ''),
                 (string) $request->validated('password'),
                 $targetRole
             );

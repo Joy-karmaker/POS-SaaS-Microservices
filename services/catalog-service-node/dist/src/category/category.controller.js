@@ -27,8 +27,11 @@ let CategoryController = class CategoryController {
     create(user, createCategoryDto) {
         return this.categoryService.create(user.tenant_id, createCategoryDto);
     }
-    findAll(user) {
-        return this.categoryService.findAll(user.tenant_id);
+    findAll(user, page, limit) {
+        return this.categoryService.findAll(user.tenant_id, {
+            page: page ? parseInt(page) : undefined,
+            limit: limit ? parseInt(limit) : undefined,
+        });
     }
     findOne(user, id) {
         return this.categoryService.findOne(user.tenant_id, +id);
@@ -52,8 +55,10 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], CategoryController.prototype, "findAll", null);
 __decorate([

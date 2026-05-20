@@ -5,91 +5,122 @@ export declare class ProductService {
     private prisma;
     constructor(prisma: PrismaService);
     create(tenantId: number, createProductDto: CreateProductDto): Promise<{
-        name: string;
-        tenant_id: number;
-        created_at: Date;
-        updated_at: Date;
-        id: number;
-        category_id: number | null;
-        sku: string | null;
-        barcode: string | null;
-        price: import("@prisma/client-runtime-utils").Decimal;
-        cost_price: import("@prisma/client-runtime-utils").Decimal | null;
-        stock_quantity: number;
-        is_active: boolean;
-    }>;
-    findAll(tenantId: number): Promise<({
         category: {
+            id: number;
+            tenant_id: number;
             name: string;
             description: string | null;
-            tenant_id: number;
             created_at: Date;
             updated_at: Date;
-            id: number;
         } | null;
     } & {
-        name: string;
+        id: number;
         tenant_id: number;
+        name: string;
         created_at: Date;
         updated_at: Date;
-        id: number;
-        category_id: number | null;
         sku: string | null;
         barcode: string | null;
         price: import("@prisma/client-runtime-utils").Decimal;
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
-    })[]>;
+        category_id: number | null;
+    }>;
+    findAll(tenantId: number, options?: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        categoryId?: number;
+    }): Promise<{
+        data: ({
+            category: {
+                id: number;
+                tenant_id: number;
+                name: string;
+                description: string | null;
+                created_at: Date;
+                updated_at: Date;
+            } | null;
+        } & {
+            id: number;
+            tenant_id: number;
+            name: string;
+            created_at: Date;
+            updated_at: Date;
+            sku: string | null;
+            barcode: string | null;
+            price: import("@prisma/client-runtime-utils").Decimal;
+            cost_price: import("@prisma/client-runtime-utils").Decimal | null;
+            stock_quantity: number;
+            is_active: boolean;
+            category_id: number | null;
+        })[];
+        meta: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
     findOne(tenantId: number, id: number): Promise<{
         category: {
+            id: number;
+            tenant_id: number;
             name: string;
             description: string | null;
-            tenant_id: number;
             created_at: Date;
             updated_at: Date;
-            id: number;
         } | null;
     } & {
-        name: string;
+        id: number;
         tenant_id: number;
+        name: string;
         created_at: Date;
         updated_at: Date;
-        id: number;
-        category_id: number | null;
         sku: string | null;
         barcode: string | null;
         price: import("@prisma/client-runtime-utils").Decimal;
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        category_id: number | null;
     }>;
     update(tenantId: number, id: number, updateProductDto: UpdateProductDto): Promise<{
-        name: string;
+        category: {
+            id: number;
+            tenant_id: number;
+            name: string;
+            description: string | null;
+            created_at: Date;
+            updated_at: Date;
+        } | null;
+    } & {
+        id: number;
         tenant_id: number;
+        name: string;
         created_at: Date;
         updated_at: Date;
-        id: number;
-        category_id: number | null;
         sku: string | null;
         barcode: string | null;
         price: import("@prisma/client-runtime-utils").Decimal;
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        category_id: number | null;
     }>;
     remove(tenantId: number, id: number): Promise<{
-        name: string;
+        id: number;
         tenant_id: number;
+        name: string;
         created_at: Date;
         updated_at: Date;
-        id: number;
-        category_id: number | null;
         sku: string | null;
         barcode: string | null;
         price: import("@prisma/client-runtime-utils").Decimal;
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        category_id: number | null;
     }>;
 }

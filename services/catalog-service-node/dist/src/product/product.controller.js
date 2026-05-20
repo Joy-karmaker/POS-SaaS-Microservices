@@ -27,8 +27,13 @@ let ProductController = class ProductController {
     create(user, createProductDto) {
         return this.productService.create(user.tenant_id, createProductDto);
     }
-    findAll(user) {
-        return this.productService.findAll(user.tenant_id);
+    findAll(user, page, limit, search, categoryId) {
+        return this.productService.findAll(user.tenant_id, {
+            page: page ? parseInt(page) : 1,
+            limit: limit ? parseInt(limit) : 10,
+            search,
+            categoryId: categoryId ? parseInt(categoryId) : undefined,
+        });
     }
     findOne(user, id) {
         return this.productService.findOne(user.tenant_id, +id);
@@ -52,8 +57,12 @@ __decorate([
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('limit')),
+    __param(3, (0, common_1.Query)('search')),
+    __param(4, (0, common_1.Query)('categoryId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ProductController.prototype, "findAll", null);
 __decorate([

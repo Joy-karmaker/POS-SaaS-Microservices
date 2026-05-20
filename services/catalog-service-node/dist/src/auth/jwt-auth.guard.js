@@ -46,9 +46,6 @@ let JwtAuthGuard = class JwtAuthGuard {
     canActivate(context) {
         const request = context.switchToHttp().getRequest();
         const token = this.extractTokenFromHeader(request);
-        console.log('--- AUTH DEBUG ---');
-        console.log('Headers:', request.headers);
-        console.log('Extracted Token:', token);
         if (!token) {
             throw new common_1.UnauthorizedException('No token provided');
         }
@@ -62,8 +59,6 @@ let JwtAuthGuard = class JwtAuthGuard {
             request.user = payload;
         }
         catch (e) {
-            console.log('JWT Verify Error:', e.message);
-            console.log('Secret used:', secret);
             throw new common_1.UnauthorizedException('Invalid or expired token');
         }
         return true;
