@@ -1,0 +1,10 @@
+#!/bin/sh
+# Professional Docker-based Git Hook
+# This runs on your host but executes checks inside the container
+
+echo "--- Running Pre-commit Checks in Docker ---"
+docker compose exec -T frontend npx lint-staged
+if [ $? -ne 0 ]; then
+    echo "ERROR: Code quality checks failed. Commit rejected."
+    exit 1
+fi

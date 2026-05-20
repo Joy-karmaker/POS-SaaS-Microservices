@@ -21,18 +21,43 @@ let CategoryService = class CategoryService {
         return this.prisma.category.create({
             data: {
                 ...createCategoryDto,
-                tenant_id: tenantId,
+                tenant_id: Number(tenantId),
             },
         });
     }
-    async findAll(tenantId) {
+    async findAll(tenantId, options) {
+        const where = { tenant_id: Number(tenantId) };
+        if (options && options.page) {
+            const page = options.page || 1;
+            const limit = options.limit || 5;
+            const skip = (page - 1) * limit;
+            const [data, total] = await Promise.all([
+                this.prisma.category.findMany({
+                    where,
+                    skip,
+                    take: limit,
+                    orderBy: { id: 'desc' }
+                }),
+                this.prisma.category.count({ where }),
+            ]);
+            return {
+                data,
+                meta: {
+                    total,
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit),
+                },
+            };
+        }
         return this.prisma.category.findMany({
-            where: { tenant_id: tenantId },
+            where,
+            orderBy: { id: 'desc' }
         });
     }
     async findOne(tenantId, id) {
         const category = await this.prisma.category.findFirst({
-            where: { id, tenant_id: tenantId },
+            where: { id, tenant_id: Number(tenantId) },
         });
         if (!category) {
             throw new common_1.NotFoundException(`Category #${id} not found`);

@@ -125,7 +125,7 @@ class TenantProvisioningService
 
         $response = Http::withToken((string) $token)
             ->withHeaders(['Accept' => 'application/json'])
-            ->post("{$authServiceUrl}/auth/staff", [
+            ->post("{$authServiceUrl}/staff", [
                 'tenant_id' => $tenantId,
                 'password' => $password !== '' ? $password : 'password123',
                 'role' => 'tenant_admin',

@@ -18,22 +18,49 @@ let ProductService = class ProductService {
         this.prisma = prisma;
     }
     async create(tenantId, createProductDto) {
+        const { image_url, ...rest } = createProductDto;
         return this.prisma.product.create({
             data: {
-                ...createProductDto,
-                tenant_id: tenantId,
+                ...rest,
+                tenant_id: Number(tenantId),
             },
-        });
-    }
-    async findAll(tenantId) {
-        return this.prisma.product.findMany({
-            where: { tenant_id: tenantId },
             include: { category: true },
         });
     }
+    async findAll(tenantId, options) {
+        const page = options?.page || 1;
+        const limit = options?.limit || 10;
+        const skip = (page - 1) * limit;
+        const where = { tenant_id: Number(tenantId) };
+        if (options?.search) {
+            where.name = { contains: options.search };
+        }
+        if (options?.categoryId) {
+            where.category_id = options.categoryId;
+        }
+        const [data, total] = await Promise.all([
+            this.prisma.product.findMany({
+                where,
+                include: { category: true },
+                skip,
+                take: limit,
+                orderBy: { id: 'desc' }
+            }),
+            this.prisma.product.count({ where }),
+        ]);
+        return {
+            data,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
+    }
     async findOne(tenantId, id) {
         const product = await this.prisma.product.findFirst({
-            where: { id, tenant_id: tenantId },
+            where: { id, tenant_id: Number(tenantId) },
             include: { category: true },
         });
         if (!product) {
@@ -43,9 +70,22 @@ let ProductService = class ProductService {
     }
     async update(tenantId, id, updateProductDto) {
         await this.findOne(tenantId, id);
+        const { category_id, ...rest } = updateProductDto;
+        if ('image_url' in rest)
+            delete rest.image_url;
+        const updateData = { ...rest };
+        if (category_id !== undefined) {
+            if (category_id === null) {
+                updateData.category = { disconnect: true };
+            }
+            else {
+                updateData.category = { connect: { id: category_id } };
+            }
+        }
         return this.prisma.product.update({
             where: { id },
-            data: updateProductDto,
+            data: updateData,
+            include: { category: true },
         });
     }
     async remove(tenantId, id) {

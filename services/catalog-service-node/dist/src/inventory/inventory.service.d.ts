@@ -4,22 +4,22 @@ export declare class InventoryService {
     private prisma;
     constructor(prisma: PrismaService);
     adjustStock(tenantId: number, adjustStockDto: AdjustStockDto): Promise<{
-        name: string;
+        id: number;
         tenant_id: number;
+        name: string;
         created_at: Date;
         updated_at: Date;
-        id: number;
-        category_id: number | null;
         sku: string | null;
         barcode: string | null;
         price: import("@prisma/client-runtime-utils").Decimal;
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        category_id: number | null;
     }>;
     getStock(tenantId: number, productId: number): Promise<{
-        name: string;
         id: number;
+        name: string;
         stock_quantity: number;
     }>;
 }
