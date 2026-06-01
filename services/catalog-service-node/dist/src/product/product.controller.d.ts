@@ -25,6 +25,8 @@ export declare class ProductController {
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+        stock_out_date: Date | null;
         category_id: number | null;
     }>;
     findAll(user: any, page?: string, limit?: string, search?: string, categoryId?: string): Promise<{
@@ -49,6 +51,8 @@ export declare class ProductController {
             cost_price: import("@prisma/client-runtime-utils").Decimal | null;
             stock_quantity: number;
             is_active: boolean;
+            sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+            stock_out_date: Date | null;
             category_id: number | null;
         })[];
         meta: {
@@ -58,6 +62,31 @@ export declare class ProductController {
             totalPages: number;
         };
     }>;
+    getSearchIndex(user: any): Promise<({
+        category: {
+            id: number;
+            tenant_id: number;
+            name: string;
+            description: string | null;
+            created_at: Date;
+            updated_at: Date;
+        } | null;
+    } & {
+        id: number;
+        tenant_id: number;
+        name: string;
+        created_at: Date;
+        updated_at: Date;
+        sku: string | null;
+        barcode: string | null;
+        price: import("@prisma/client-runtime-utils").Decimal;
+        cost_price: import("@prisma/client-runtime-utils").Decimal | null;
+        stock_quantity: number;
+        is_active: boolean;
+        sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+        stock_out_date: Date | null;
+        category_id: number | null;
+    })[]>;
     findOne(user: any, id: string): Promise<{
         category: {
             id: number;
@@ -79,6 +108,8 @@ export declare class ProductController {
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+        stock_out_date: Date | null;
         category_id: number | null;
     }>;
     update(user: any, id: string, updateProductDto: UpdateProductDto): Promise<{
@@ -102,6 +133,8 @@ export declare class ProductController {
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+        stock_out_date: Date | null;
         category_id: number | null;
     }>;
     remove(user: any, id: string): Promise<{
@@ -116,6 +149,8 @@ export declare class ProductController {
         cost_price: import("@prisma/client-runtime-utils").Decimal | null;
         stock_quantity: number;
         is_active: boolean;
+        sales_velocity: import("@prisma/client-runtime-utils").Decimal;
+        stock_out_date: Date | null;
         category_id: number | null;
     }>;
 }

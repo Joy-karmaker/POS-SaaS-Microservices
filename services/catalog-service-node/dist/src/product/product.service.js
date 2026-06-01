@@ -12,20 +12,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProductService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma.service");
+const inventory_gateway_1 = require("../inventory/inventory.gateway");
 let ProductService = class ProductService {
     prisma;
-    constructor(prisma) {
+    inventoryGateway;
+    constructor(prisma, inventoryGateway) {
         this.prisma = prisma;
+        this.inventoryGateway = inventoryGateway;
     }
     async create(tenantId, createProductDto) {
         const { image_url, ...rest } = createProductDto;
-        return this.prisma.product.create({
+        const product = await this.prisma.product.create({
             data: {
                 ...rest,
                 tenant_id: Number(tenantId),
             },
             include: { category: true },
         });
+        this.inventoryGateway.broadcastProductCreated(Number(tenantId), product);
+        return product;
     }
     async findAll(tenantId, options) {
         const page = options?.page || 1;
@@ -58,6 +63,13 @@ let ProductService = class ProductService {
             },
         };
     }
+    async getSearchIndex(tenantId) {
+        return this.prisma.product.findMany({
+            where: { tenant_id: Number(tenantId) },
+            include: { category: true },
+            orderBy: { id: 'desc' }
+        });
+    }
     async findOne(tenantId, id) {
         const product = await this.prisma.product.findFirst({
             where: { id, tenant_id: Number(tenantId) },
@@ -82,22 +94,27 @@ let ProductService = class ProductService {
                 updateData.category = { connect: { id: category_id } };
             }
         }
-        return this.prisma.product.update({
+        const updatedProduct = await this.prisma.product.update({
             where: { id },
             data: updateData,
             include: { category: true },
         });
+        this.inventoryGateway.broadcastProductUpdated(Number(tenantId), updatedProduct);
+        return updatedProduct;
     }
     async remove(tenantId, id) {
         await this.findOne(tenantId, id);
-        return this.prisma.product.delete({
+        const deletedProduct = await this.prisma.product.delete({
             where: { id },
         });
+        this.inventoryGateway.broadcastProductDeleted(Number(tenantId), id);
+        return deletedProduct;
     }
 };
 exports.ProductService = ProductService;
 exports.ProductService = ProductService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        inventory_gateway_1.InventoryGateway])
 ], ProductService);
 //# sourceMappingURL=product.service.js.map

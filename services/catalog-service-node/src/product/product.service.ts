@@ -2,21 +2,28 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { InventoryGateway } from '../inventory/inventory.gateway';
 
 @Injectable()
 export class ProductService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private inventoryGateway: InventoryGateway,
+  ) {}
 
   async create(tenantId: number, createProductDto: CreateProductDto) {
     const { image_url, ...rest } = createProductDto as any;
     
-    return this.prisma.product.create({
+    const product = await this.prisma.product.create({
       data: {
         ...rest,
         tenant_id: Number(tenantId),
       },
       include: { category: true },
     });
+
+    this.inventoryGateway.broadcastProductCreated(Number(tenantId), product);
+    return product;
   }
 
   async findAll(tenantId: number, options?: { page?: number, limit?: number, search?: string, categoryId?: number }) {
@@ -56,6 +63,14 @@ export class ProductService {
     };
   }
 
+  async getSearchIndex(tenantId: number) {
+    return this.prisma.product.findMany({
+      where: { tenant_id: Number(tenantId) },
+      include: { category: true },
+      orderBy: { id: 'desc' }
+    });
+  }
+
   async findOne(tenantId: number, id: number) {
     const product = await this.prisma.product.findFirst({
       where: { id, tenant_id: Number(tenantId) },
@@ -89,19 +104,25 @@ export class ProductService {
       }
     }
 
-    return this.prisma.product.update({
+    const updatedProduct = await this.prisma.product.update({
       where: { id },
       data: updateData,
       include: { category: true },
     });
+
+    this.inventoryGateway.broadcastProductUpdated(Number(tenantId), updatedProduct);
+    return updatedProduct;
   }
 
   async remove(tenantId: number, id: number) {
     // Ensure product exists for this tenant
     await this.findOne(tenantId, id);
 
-    return this.prisma.product.delete({
+    const deletedProduct = await this.prisma.product.delete({
       where: { id },
     });
+
+    this.inventoryGateway.broadcastProductDeleted(Number(tenantId), id);
+    return deletedProduct;
   }
 }

@@ -31,6 +31,11 @@ export class ProductController {
     });
   }
 
+  @Get('search-index')
+  getSearchIndex(@CurrentUser() user: any) {
+    return this.productService.getSearchIndex(user.tenant_id);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user: any, @Param('id') id: string) {
     return this.productService.findOne(user.tenant_id, +id);

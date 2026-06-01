@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
-import { getCategories, createCategory, updateCategory, deleteCategory, getProducts, createProduct, updateProduct, deleteProduct } from '../api/catalogApi'
+import { useEffect, useState, useMemo } from 'react'
+import { getCategories, createCategory, updateCategory, deleteCategory, getProducts, createProduct, updateProduct, deleteProduct, getProductSearchIndex } from '../api/catalogApi'
 import { TenantNav } from '../components/TenantNav'
+import { io } from 'socket.io-client'
+import { FuzzySearchIndex } from '../utils/FuzzySearchIndex'
 
 export function TenantCatalogPage({ user }) {
   const [allCategories, setAllCategories] = useState([])
@@ -74,32 +76,110 @@ export function TenantCatalogPage({ user }) {
     fetchCategoriesList()
   }, [catPage, catLimit])
 
-  const fetchProductsList = async () => {
+  const searchIndex = useMemo(() => new FuzzySearchIndex(), [])
+  const [indexVersion, setIndexVersion] = useState(0)
+
+  // Initialize product search index
+  const initializeProductsIndex = async () => {
     setLoading(true)
     try {
-      const params = { page, limit }
-      if (appliedSearchTerm) params.search = appliedSearchTerm
-      if (filterCategory) params.categoryId = filterCategory
-
-      const res = await getProducts(params)
-      if (res && res.data && res.meta) {
-        setProducts(res.data)
-        setMeta(res.meta)
-      } else if (Array.isArray(res)) {
-        // Fallback
-        setProducts(res)
-      }
+      const data = await getProductSearchIndex()
+      searchIndex.clear()
+      searchIndex.addProducts(data)
+      setIndexVersion(v => v + 1)
     } catch (err) {
-      console.error('Failed to load products', err)
+      console.error('Failed to load product search index', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Fetch products when filters or pagination change
   useEffect(() => {
-    fetchProductsList()
-  }, [page, limit, appliedSearchTerm, filterCategory])
+    initializeProductsIndex()
+  }, [])
+
+  const computeVisibleProducts = () => {
+    // 1. Get searched products from local Trie
+    let filtered = appliedSearchTerm
+      ? searchIndex.search(appliedSearchTerm)
+      : Array.from(searchIndex.productsMap.values())
+
+    // 2. Filter by category
+    if (filterCategory) {
+      filtered = filtered.filter(p => p.category_id === Number(filterCategory))
+    }
+
+    // 3. Paginate
+    const total = filtered.length
+    const totalPages = Math.ceil(total / limit) || 1
+
+    // Safety check: reset to page 1 if current page is out of bounds
+    let currentPage = page
+    if (page > totalPages) {
+      currentPage = 1
+      setPage(1)
+    }
+
+    const startIndex = (currentPage - 1) * limit
+    const paginated = filtered.slice(startIndex, startIndex + limit)
+
+    setProducts(paginated)
+    setMeta({
+      total,
+      page: currentPage,
+      limit,
+      totalPages
+    })
+  }
+
+  // Compute products list when filters, pagination, or search index updates
+  useEffect(() => {
+    computeVisibleProducts()
+  }, [page, limit, appliedSearchTerm, filterCategory, indexVersion])
+
+  // Real-time stock & catalog updates via WebSockets
+  useEffect(() => {
+    const socket = io(window.location.origin, {
+      path: '/catalog/socket.io',
+      transports: ['websocket'],
+      upgrade: false
+    })
+
+    socket.on('connect', () => {
+      console.log('Connected to real-time inventory updates channel')
+    })
+
+    socket.on('connect_error', (err) => {
+      console.warn('Real-time connection failed, retrying...', err.message)
+    })
+
+    socket.on('stock_updated', ({ productId, stockQuantity }) => {
+      const prod = searchIndex.productsMap.get(productId)
+      if (prod) {
+        searchIndex.addProduct({ ...prod, stock_quantity: stockQuantity })
+        setIndexVersion(v => v + 1)
+      }
+    })
+
+    socket.on('product_updated', (updatedProduct) => {
+      searchIndex.addProduct(updatedProduct)
+      setIndexVersion(v => v + 1)
+    })
+
+    socket.on('product_created', (newProduct) => {
+      searchIndex.addProduct(newProduct)
+      setIndexVersion(v => v + 1)
+    })
+
+    socket.on('product_deleted', (deletedProductId) => {
+      searchIndex.removeProduct(deletedProductId)
+      setIndexVersion(v => v + 1)
+    })
+
+    return () => {
+      socket.disconnect()
+    }
+  }, [])
 
   const handleCreateCategory = async (e) => {
     e.preventDefault()
@@ -128,7 +208,8 @@ export function TenantCatalogPage({ user }) {
         barcode: newProduct.barcode,
         image_url: newProduct.image_url
       })
-      setProducts([...products, prod])
+      searchIndex.addProduct(prod)
+      setIndexVersion(v => v + 1)
       setNewProduct({ name: '', price: '', category_id: '', stock_quantity: '', sku: '', barcode: '', image_url: '' })
     } catch (err) {
       console.error(err)
@@ -156,9 +237,14 @@ export function TenantCatalogPage({ user }) {
       setEditingCategoryId(null)
       fetchCategoriesList()
       fetchAllCategories()
-      // Refresh products to show updated category name
-      // Refresh products to show updated category name
-      fetchProductsList()
+      // Update local products categories in index
+      for (const [id, p] of searchIndex.productsMap.entries()) {
+        if (p.category_id === editingCategoryId) {
+          p.category = { ...p.category, name: editCategoryName }
+        }
+      }
+      searchIndex.rebuild()
+      setIndexVersion(v => v + 1)
     } catch (err) {
       console.error(err)
       alert('Failed to update category')
@@ -169,7 +255,8 @@ export function TenantCatalogPage({ user }) {
     if (!confirm('Are you sure you want to delete this product?')) return
     try {
       await deleteProduct(id)
-      setProducts(products.filter(p => p.id !== id))
+      searchIndex.removeProduct(id)
+      setIndexVersion(v => v + 1)
     } catch (err) {
       console.error(err)
       alert('Failed to delete product')
@@ -198,7 +285,8 @@ export function TenantCatalogPage({ user }) {
         category_id: editData.category_id ? parseInt(editData.category_id) : null,
         stock_quantity: parseInt(editData.stock_quantity)
       })
-      setProducts(products.map(p => p.id === editingId ? updated : p))
+      searchIndex.addProduct(updated)
+      setIndexVersion(v => v + 1)
       setEditingId(null)
     } catch (err) {
       console.error(err)
@@ -227,7 +315,8 @@ export function TenantCatalogPage({ user }) {
     if (!confirm(`Are you sure you want to delete ${selectedProductIds.length} products?`)) return
     try {
       await Promise.all(selectedProductIds.map(id => deleteProduct(id)))
-      setProducts(products.filter(p => !selectedProductIds.includes(p.id)))
+      selectedProductIds.forEach(id => searchIndex.removeProduct(id))
+      setIndexVersion(v => v + 1)
       setSelectedProductIds([])
     } catch (err) {
       console.error(err)
@@ -237,7 +326,14 @@ export function TenantCatalogPage({ user }) {
 
   const handleExportCSV = () => {
     const headers = ['Name', 'SKU', 'Category', 'Price', 'Stock']
-    const rows = products.map(p => [
+    let matched = appliedSearchTerm
+      ? searchIndex.search(appliedSearchTerm)
+      : Array.from(searchIndex.productsMap.values())
+    if (filterCategory) {
+      matched = matched.filter(p => p.category_id === Number(filterCategory))
+    }
+
+    const rows = matched.map(p => [
       p.name,
       p.sku || '',
       p.category?.name || '',
@@ -288,21 +384,31 @@ export function TenantCatalogPage({ user }) {
           console.error(`Failed to import row: ${row}`, err)
         }
       }
-      setProducts([...products, ...importedProducts])
+      searchIndex.addProducts(importedProducts)
+      setIndexVersion(v => v + 1)
       alert(`Imported ${importedProducts.length} products successfully!`)
       e.target.value = '' // reset input
     }
     reader.readAsText(file)
   }
 
-  const handleSearchSubmit = () => {
-    setAppliedSearchTerm(searchTerm)
-    setPage(1)
-  }
+  const formatStockOutDateShort = (p) => {
+    if (p.stock_quantity === 0) {
+      return <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem' }}>OUT</span>
+    }
+    if (!p.stock_out_date || parseFloat(p.sales_velocity) === 0) {
+      return <span style={{ color: '#64748b', fontSize: '0.8rem' }}>Stable</span>
+    }
+    const date = new Date(p.stock_out_date)
+    const now = new Date()
+    const diffTime = date.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-  const handleCategoryFilterChange = (e) => {
-    setFilterCategory(e.target.value)
-    setPage(1)
+    if (diffDays <= 0) return <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem' }}>Today</span>
+    if (diffDays === 1) return <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem' }}>Tomorrow</span>
+    if (diffDays <= 3) return <span style={{ color: '#f97316', fontWeight: 600, fontSize: '0.8rem', padding: '2px 6px', background: 'rgba(249, 115, 22, 0.08)', borderRadius: '4px' }}>&lt;3 Days</span>
+    if (diffDays <= 7) return <span style={{ color: '#eab308', fontWeight: 500, fontSize: '0.8rem', padding: '2px 6px', background: 'rgba(234, 179, 8, 0.08)', borderRadius: '4px' }}>&lt;7 Days</span>
+    return <span style={{ color: '#10b981', fontSize: '0.8rem' }}>{diffDays} Days</span>
   }
 
   return (
@@ -316,7 +422,7 @@ export function TenantCatalogPage({ user }) {
 
       <TenantNav />
 
-      <main className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <main className="dashboard-grid" style={{ gridTemplateColumns: '1fr 1.8fr' }}>
         <div className="card">
           <div className="card-head">
             <h3>Categories</h3>
@@ -513,7 +619,9 @@ export function TenantCatalogPage({ user }) {
                       <th>SKU</th>
                       <th>Category</th>
                       <th>Price</th>
-                      <th>Stock</th>
+                      <th style={{ textAlign: 'center' }}>Stock</th>
+                      <th style={{ textAlign: 'center' }}>Velocity (Qty/Day)</th>
+                      <th style={{ textAlign: 'center' }}>Stock-out Forecast</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
@@ -568,15 +676,8 @@ export function TenantCatalogPage({ user }) {
                                 style={{ padding: '4px', fontSize: '0.8rem', width: '60px' }}
                               />
                             </td>
-                            <td>
-                              <input 
-                                type="text" 
-                                placeholder="Img URL"
-                                value={editData.image_url} 
-                                onChange={(e) => setEditData({...editData, image_url: e.target.value})}
-                                style={{ padding: '4px', fontSize: '0.8rem', width: '80px' }}
-                              />
-                            </td>
+                            <td style={{ textAlign: 'center' }}>-</td>
+                            <td style={{ textAlign: 'center' }}>-</td>
                             <td style={{ textAlign: 'right' }}>
                               <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                                 <button onClick={handleUpdateProduct} className="btn-primary" style={{ width: 'auto', padding: '4px 8px', fontSize: '0.75rem' }}>Save</button>
@@ -608,11 +709,19 @@ export function TenantCatalogPage({ user }) {
                             <td style={{ fontFamily: 'JetBrains Mono' }}>${p.price}</td>
                             <td style={{ 
                               fontFamily: 'JetBrains Mono', 
-                              color: p.stock_quantity < 5 ? '#ef4444' : 'inherit',
+                              textAlign: 'center',
+                              color: p.stock_quantity === 0 ? '#ef4444' : p.stock_quantity < 5 ? '#f97316' : 'inherit',
                               fontWeight: p.stock_quantity < 5 ? 'bold' : 'normal'
                             }}>
                               {p.stock_quantity}
-                              {p.stock_quantity < 5 && <span style={{ fontSize: '0.65rem', marginLeft: '4px', textTransform: 'uppercase' }}>Low</span>}
+                              {p.stock_quantity < 5 && p.stock_quantity > 0 && <span style={{ fontSize: '0.65rem', marginLeft: '4px', textTransform: 'uppercase', padding: '2px 4px', background: 'rgba(249, 115, 22, 0.1)', borderRadius: '4px' }}>Low</span>}
+                              {p.stock_quantity === 0 && <span style={{ fontSize: '0.65rem', marginLeft: '4px', textTransform: 'uppercase', padding: '2px 4px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '4px' }}>Out</span>}
+                            </td>
+                            <td style={{ fontFamily: 'JetBrains Mono', textAlign: 'center' }}>
+                              {p.sales_velocity}
+                            </td>
+                            <td style={{ textAlign: 'center', fontWeight: 500 }}>
+                              {formatStockOutDateShort(p)}
                             </td>
                             <td style={{ textAlign: 'right' }}>
                               <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>

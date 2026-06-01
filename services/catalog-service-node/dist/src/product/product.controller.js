@@ -35,6 +35,9 @@ let ProductController = class ProductController {
             categoryId: categoryId ? parseInt(categoryId) : undefined,
         });
     }
+    getSearchIndex(user) {
+        return this.productService.getSearchIndex(user.tenant_id);
+    }
     findOne(user, id) {
         return this.productService.findOne(user.tenant_id, +id);
     }
@@ -65,6 +68,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String, String, String]),
     __metadata("design:returntype", void 0)
 ], ProductController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('search-index'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], ProductController.prototype, "getSearchIndex", null);
 __decorate([
     (0, common_1.Get)(':id'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),

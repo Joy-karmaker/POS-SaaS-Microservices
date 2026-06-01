@@ -29,6 +29,11 @@ export async function getProducts(params = {}) {
   return data
 }
 
+export async function getProductSearchIndex() {
+  const { data } = await apiClient.get('/catalog/products/search-index')
+  return data
+}
+
 export async function createProduct(payload) {
   const { data } = await apiClient.post('/catalog/products', payload)
   return data
