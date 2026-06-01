@@ -40,9 +40,42 @@ model Product {
   created_at     DateTime  @default(now())
   updated_at     DateTime  @updatedAt
 
+  // Cached forecasting columns for O(1) read optimization
+  sales_velocity Decimal   @default(0.00) @db.Decimal(10, 2)
+  stock_out_date DateTime?
+
   category       Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  sale_items     SaleItem[]
 
   @@index([tenant_id])
   @@index([sku])
   @@map("products")
+}
+
+model Sale {
+  id           Int        @id @default(autoincrement())
+  tenant_id    Int
+  total_amount Decimal    @db.Decimal(12, 2)
+  created_at   DateTime   @default(now())
+  
+  items        SaleItem[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, created_at])
+  @@map("sales")
+}
+
+model SaleItem {
+  id         Int      @id @default(autoincrement())
+  sale_id    Int
+  product_id Int
+  quantity   Int
+  price      Decimal  @db.Decimal(12, 2)
+
+  sale       Sale     @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([sale_id])
+  @@index([product_id])
+  @@map("sale_items")
 }
