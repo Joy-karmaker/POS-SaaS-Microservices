@@ -181,6 +181,16 @@ export function TenantCatalogPage({ user }) {
     }
   }, [])
 
+  const handleSearchSubmit = () => {
+    setAppliedSearchTerm(searchTerm)
+    setPage(1)
+  }
+
+  const handleCategoryFilterChange = (e) => {
+    setFilterCategory(e.target.value)
+    setPage(1)
+  }
+
   const handleCreateCategory = async (e) => {
     e.preventDefault()
     if (!newCatName.trim()) return

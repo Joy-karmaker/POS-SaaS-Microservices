@@ -48,3 +48,12 @@ export async function deleteProduct(id) {
   const { data } = await apiClient.delete(`/catalog/products/${id}`)
   return data
 }
+
+export async function adjustStock(productId, quantityChange) {
+  const { data } = await apiClient.post('/catalog/inventory/adjust', {
+    product_id: productId,
+    quantity_change: quantityChange
+  })
+  return data
+}
+

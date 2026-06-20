@@ -181,6 +181,36 @@ services:
     networks:
       - pos-network
 
+  cart-service:
+    build:
+      context: ./services/cart-service-node
+      dockerfile: Dockerfile
+    container_name: cart-service
+    volumes:
+      - ./services/cart-service-node:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      CATALOG_SERVICE_URL: http://catalog-service:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+    expose:
+      - "3000"
+    networks:
+      - pos-network
+
   gateway:
     image: nginx:1.27-alpine
     container_name: api-gateway
@@ -193,6 +223,7 @@ services:
       - auth-service
       - tenant-service
       - catalog-service
+      - cart-service
     networks:
       - pos-network
 
