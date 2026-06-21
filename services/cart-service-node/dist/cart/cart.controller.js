@@ -1,37 +1,40 @@
 "use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+Object.defineProperty(exports, "CartController", {
+    enumerable: true,
+    get: function() {
+        return CartController;
+    }
+});
+const _common = require("@nestjs/common");
+const _cartservice = require("./cart.service");
+const _jwtauthguard = require("../auth/jwt-auth.guard");
+const _currentuserdecorator = require("../auth/current-user.decorator");
+function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    else for(var i = decorators.length - 1; i >= 0; i--)if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
+}
+function _ts_metadata(k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __param = (this && this.__param) || function (paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CartController = void 0;
-const common_1 = require("@nestjs/common");
-const cart_service_1 = require("./cart.service");
-const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
-const current_user_decorator_1 = require("../auth/current-user.decorator");
+}
+function _ts_param(paramIndex, decorator) {
+    return function(target, key) {
+        decorator(target, key, paramIndex);
+    };
+}
 function extractAuthHeader(authHeader, cookieHeader) {
-    if (authHeader)
-        return authHeader;
+    if (authHeader) return authHeader;
     if (cookieHeader) {
         const match = cookieHeader.match(/pos_access_token=([^;]+)/);
-        if (match)
-            return `Bearer ${decodeURIComponent(match[1])}`;
+        if (match) return `Bearer ${decodeURIComponent(match[1])}`;
     }
     return '';
 }
 let CartController = class CartController {
-    cartService;
-    constructor(cartService) {
-        this.cartService = cartService;
-    }
     createCart() {
         return this.cartService.createCart();
     }
@@ -51,68 +54,100 @@ let CartController = class CartController {
     }
     async clearCart(user, id) {
         await this.cartService.clearCart(user.tenant_id, id);
-        return { success: true };
+        return {
+            success: true
+        };
+    }
+    constructor(cartService){
+        this.cartService = cartService;
     }
 };
-exports.CartController = CartController;
-__decorate([
-    (0, common_1.Post)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", void 0)
+_ts_decorate([
+    (0, _common.Post)(),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", []),
+    _ts_metadata("design:returntype", void 0)
 ], CartController.prototype, "createCart", null);
-__decorate([
-    (0, common_1.Get)(':id'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
-    __metadata("design:returntype", void 0)
+_ts_decorate([
+    (0, _common.Get)(':id'),
+    _ts_param(0, (0, _currentuserdecorator.CurrentUser)()),
+    _ts_param(1, (0, _common.Param)('id')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
 ], CartController.prototype, "getCart", null);
-__decorate([
-    (0, common_1.Post)(':id/items'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Body)('product_id')),
-    __param(3, (0, common_1.Body)('quantity')),
-    __param(4, (0, common_1.Headers)('authorization')),
-    __param(5, (0, common_1.Headers)('cookie')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Number, Number, String, String]),
-    __metadata("design:returntype", void 0)
+_ts_decorate([
+    (0, _common.Post)(':id/items'),
+    _ts_param(0, (0, _currentuserdecorator.CurrentUser)()),
+    _ts_param(1, (0, _common.Param)('id')),
+    _ts_param(2, (0, _common.Body)('product_id')),
+    _ts_param(3, (0, _common.Body)('quantity')),
+    _ts_param(4, (0, _common.Headers)('authorization')),
+    _ts_param(5, (0, _common.Headers)('cookie')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        String,
+        Number,
+        Number,
+        String,
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
 ], CartController.prototype, "addItem", null);
-__decorate([
-    (0, common_1.Patch)(':id/items/:productId'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Param)('productId')),
-    __param(3, (0, common_1.Body)('quantity')),
-    __param(4, (0, common_1.Headers)('authorization')),
-    __param(5, (0, common_1.Headers)('cookie')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String, Number, String, String]),
-    __metadata("design:returntype", void 0)
+_ts_decorate([
+    (0, _common.Patch)(':id/items/:productId'),
+    _ts_param(0, (0, _currentuserdecorator.CurrentUser)()),
+    _ts_param(1, (0, _common.Param)('id')),
+    _ts_param(2, (0, _common.Param)('productId')),
+    _ts_param(3, (0, _common.Body)('quantity')),
+    _ts_param(4, (0, _common.Headers)('authorization')),
+    _ts_param(5, (0, _common.Headers)('cookie')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        String,
+        String,
+        Number,
+        String,
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
 ], CartController.prototype, "updateItem", null);
-__decorate([
-    (0, common_1.Delete)(':id/items/:productId'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id')),
-    __param(2, (0, common_1.Param)('productId')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, String]),
-    __metadata("design:returntype", void 0)
+_ts_decorate([
+    (0, _common.Delete)(':id/items/:productId'),
+    _ts_param(0, (0, _currentuserdecorator.CurrentUser)()),
+    _ts_param(1, (0, _common.Param)('id')),
+    _ts_param(2, (0, _common.Param)('productId')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        String,
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
 ], CartController.prototype, "removeItem", null);
-__decorate([
-    (0, common_1.Delete)(':id'),
-    __param(0, (0, current_user_decorator_1.CurrentUser)()),
-    __param(1, (0, common_1.Param)('id')),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
-    __metadata("design:returntype", Promise)
+_ts_decorate([
+    (0, _common.Delete)(':id'),
+    _ts_param(0, (0, _currentuserdecorator.CurrentUser)()),
+    _ts_param(1, (0, _common.Param)('id')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        String
+    ]),
+    _ts_metadata("design:returntype", Promise)
 ], CartController.prototype, "clearCart", null);
-exports.CartController = CartController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    (0, common_1.Controller)('cart'),
-    __metadata("design:paramtypes", [cart_service_1.CartService])
+CartController = _ts_decorate([
+    (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
+    (0, _common.Controller)('cart'),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof _cartservice.CartService === "undefined" ? Object : _cartservice.CartService
+    ])
 ], CartController);
+
 //# sourceMappingURL=cart.controller.js.map
