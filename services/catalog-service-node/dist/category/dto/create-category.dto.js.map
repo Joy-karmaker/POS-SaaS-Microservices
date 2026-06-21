@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/category/dto/create-category.dto.ts"],"sourcesContent":["export class CreateCategoryDto {\n  name: string;\n  description?: string;\n}\n"],"names":["CreateCategoryDto"],"mappings":";;;;+BAAaA;;;eAAAA;;;AAAN,IAAA,AAAMA,oBAAN,MAAMA;AAGb"}

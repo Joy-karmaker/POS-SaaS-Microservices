@@ -1,0 +1,1 @@
+{"version":3,"sources":["../../../src/inventory/dto/adjust-stock.dto.ts"],"sourcesContent":["export class AdjustStockDto {\n  product_id: number;\n  quantity_change: number; // Positive to add stock, negative to reduce\n  reason?: string;\n}\n"],"names":["AdjustStockDto"],"mappings":";;;;+BAAaA;;;eAAAA;;;AAAN,IAAA,AAAMA,iBAAN,MAAMA;AAIb"}

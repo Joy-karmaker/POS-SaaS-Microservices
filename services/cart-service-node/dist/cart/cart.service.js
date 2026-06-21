@@ -1,66 +1,81 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
+Object.defineProperty(exports, "__esModule", {
+    value: true
 });
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+Object.defineProperty(exports, "CartService", {
+    enumerable: true,
+    get: function() {
+        return CartService;
+    }
+});
+const _common = require("@nestjs/common");
+const _redisservice = require("../redis/redis.service");
+const _axios = /*#__PURE__*/ _interop_require_default(require("axios"));
+const _crypto = /*#__PURE__*/ _interop_require_wildcard(require("crypto"));
+function _interop_require_default(obj) {
+    return obj && obj.__esModule ? obj : {
+        default: obj
+    };
+}
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
+function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    else for(var i = decorators.length - 1; i >= 0; i--)if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __metadata = (this && this.__metadata) || function (k, v) {
+}
+function _ts_metadata(k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.CartService = void 0;
-const common_1 = require("@nestjs/common");
-const redis_service_1 = require("../redis/redis.service");
-const axios_1 = __importDefault(require("axios"));
-const crypto = __importStar(require("crypto"));
+}
 let CartService = class CartService {
-    redisService;
-    constructor(redisService) {
-        this.redisService = redisService;
-    }
     getCartKey(tenantId, cartId) {
         return `tenant:${tenantId}:cart:${cartId}`;
     }
     async createCart() {
-        const cartId = crypto.randomUUID();
-        return { cartId };
+        const cartId = _crypto.randomUUID();
+        return {
+            cartId
+        };
     }
     async getCart(tenantId, cartId) {
         const key = this.getCartKey(tenantId, cartId);
@@ -69,31 +84,32 @@ let CartService = class CartService {
     }
     async addItem(tenantId, cartId, productId, quantity, authHeader) {
         if (quantity <= 0) {
-            throw new common_1.BadRequestException('Quantity must be greater than 0');
+            throw new _common.BadRequestException('Quantity must be greater than 0');
         }
+        // 1. Validate product exists and get details from catalog service
         const product = await this.getProductFromCatalog(productId, authHeader);
+        // 2. Check stock level
         if (product.stock_quantity < quantity) {
-            throw new common_1.BadRequestException(`Insufficient stock. Available: ${product.stock_quantity}`);
+            throw new _common.BadRequestException(`Insufficient stock. Available: ${product.stock_quantity}`);
         }
         const key = this.getCartKey(tenantId, cartId);
         const cartJson = await this.redisService.getClient().get(key);
         const items = cartJson ? JSON.parse(cartJson) : [];
-        const existingIndex = items.findIndex((i) => i.product_id === productId);
+        const existingIndex = items.findIndex((i)=>i.product_id === productId);
         if (existingIndex > -1) {
             const newQty = items[existingIndex].quantity + quantity;
             if (product.stock_quantity < newQty) {
-                throw new common_1.BadRequestException(`Insufficient stock. Cannot add more. Available: ${product.stock_quantity}`);
+                throw new _common.BadRequestException(`Insufficient stock. Cannot add more. Available: ${product.stock_quantity}`);
             }
             items[existingIndex].quantity = newQty;
-        }
-        else {
+        } else {
             items.push({
                 product_id: productId,
                 name: product.name,
                 price: parseFloat(product.price),
                 sku: product.sku,
                 barcode: product.barcode,
-                quantity,
+                quantity
             });
         }
         await this.redisService.getClient().setex(key, 86400, JSON.stringify(items));
@@ -101,25 +117,25 @@ let CartService = class CartService {
     }
     async updateItem(tenantId, cartId, productId, quantity, authHeader) {
         if (quantity < 0) {
-            throw new common_1.BadRequestException('Quantity cannot be negative');
+            throw new _common.BadRequestException('Quantity cannot be negative');
         }
         const key = this.getCartKey(tenantId, cartId);
         const cartJson = await this.redisService.getClient().get(key);
         if (!cartJson) {
-            throw new common_1.NotFoundException(`Cart #${cartId} not found`);
+            throw new _common.NotFoundException(`Cart #${cartId} not found`);
         }
         const items = JSON.parse(cartJson);
-        const existingIndex = items.findIndex((i) => i.product_id === productId);
+        const existingIndex = items.findIndex((i)=>i.product_id === productId);
         if (existingIndex === -1) {
-            throw new common_1.NotFoundException(`Product #${productId} not found in cart`);
+            throw new _common.NotFoundException(`Product #${productId} not found in cart`);
         }
         if (quantity === 0) {
             items.splice(existingIndex, 1);
-        }
-        else {
+        } else {
+            // Validate stock level
             const product = await this.getProductFromCatalog(productId, authHeader);
             if (product.stock_quantity < quantity) {
-                throw new common_1.BadRequestException(`Insufficient stock. Available: ${product.stock_quantity}`);
+                throw new _common.BadRequestException(`Insufficient stock. Available: ${product.stock_quantity}`);
             }
             items[existingIndex].quantity = quantity;
         }
@@ -130,12 +146,12 @@ let CartService = class CartService {
         const key = this.getCartKey(tenantId, cartId);
         const cartJson = await this.redisService.getClient().get(key);
         if (!cartJson) {
-            throw new common_1.NotFoundException(`Cart #${cartId} not found`);
+            throw new _common.NotFoundException(`Cart #${cartId} not found`);
         }
         const items = JSON.parse(cartJson);
-        const existingIndex = items.findIndex((i) => i.product_id === productId);
+        const existingIndex = items.findIndex((i)=>i.product_id === productId);
         if (existingIndex === -1) {
-            throw new common_1.NotFoundException(`Product #${productId} not found in cart`);
+            throw new _common.NotFoundException(`Product #${productId} not found in cart`);
         }
         items.splice(existingIndex, 1);
         await this.redisService.getClient().setex(key, 86400, JSON.stringify(items));
@@ -148,24 +164,29 @@ let CartService = class CartService {
     async getProductFromCatalog(productId, authHeader) {
         const catalogUrl = process.env.CATALOG_SERVICE_URL || 'http://catalog-service:3000';
         try {
-            const response = await axios_1.default.get(`${catalogUrl}/products/${productId}`, {
+            const response = await _axios.default.get(`${catalogUrl}/products/${productId}`, {
                 headers: {
-                    Authorization: authHeader,
-                },
+                    Authorization: authHeader
+                }
             });
             return response.data;
-        }
-        catch (e) {
+        } catch (e) {
             if (e.response && e.response.status === 404) {
-                throw new common_1.NotFoundException(`Product #${productId} not found in catalog`);
+                throw new _common.NotFoundException(`Product #${productId} not found in catalog`);
             }
-            throw new common_1.BadRequestException(`Failed to validate product against catalog: ${e.message}`);
+            throw new _common.BadRequestException(`Failed to validate product against catalog: ${e.message}`);
         }
     }
+    constructor(redisService){
+        this.redisService = redisService;
+    }
 };
-exports.CartService = CartService;
-exports.CartService = CartService = __decorate([
-    (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [redis_service_1.RedisService])
+CartService = _ts_decorate([
+    (0, _common.Injectable)(),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof _redisservice.RedisService === "undefined" ? Object : _redisservice.RedisService
+    ])
 ], CartService);
+
 //# sourceMappingURL=cart.service.js.map

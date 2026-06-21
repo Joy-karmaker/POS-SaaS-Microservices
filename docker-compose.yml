@@ -4,7 +4,7 @@ services:
   mysql:
     image: mysql:8.4
     container_name: pos-mysql
-    command: ["--mysql-native-password=ON"]
+    command: ["--mysql-native-password=ON", "--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=100"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -23,7 +23,7 @@ services:
       - pos-network
 
   rabbitmq:
-    image: rabbitmq:3.13-management
+    image: rabbitmq:3.13-management-alpine
     container_name: pos-rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
@@ -159,6 +159,7 @@ services:
     command: npm run start:dev
     environment:
       NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=128
       PORT: 3000
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
@@ -192,6 +193,7 @@ services:
     command: npm run start:dev
     environment:
       NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=128
       PORT: 3000
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
