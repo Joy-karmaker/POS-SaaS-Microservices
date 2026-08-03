@@ -5,3 +5,7 @@ node_modules/
 vendor/
 .DS_Store
 credentials.md
+
+# Ignore all markdown files in root folder except README.md
+/*.md
+!/README.md
