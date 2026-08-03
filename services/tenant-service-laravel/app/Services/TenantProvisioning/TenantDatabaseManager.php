@@ -12,13 +12,13 @@ final class TenantDatabaseManager
 {
     public function rootConnection(): PDO
     {
-        $connection = config('database.connections.mysql');
+        $connection = config('database.connections.pgsql');
         $host = (string) ($connection['host'] ?? '127.0.0.1');
-        $port = (int) ($connection['port'] ?? 3306);
-        $username = (string) ($connection['username'] ?? 'root');
+        $port = (int) ($connection['port'] ?? 5432);
+        $username = (string) ($connection['username'] ?? 'postgres');
         $password = (string) ($connection['password'] ?? '');
 
-        $dsn = sprintf('mysql:host=%s;port=%d;charset=utf8mb4', $host, $port);
+        $dsn = sprintf('pgsql:host=%s;port=%d;dbname=postgres', $host, $port);
 
         return new PDO(
             $dsn,
@@ -36,7 +36,7 @@ final class TenantDatabaseManager
         $identifier = $this->assertIdentifier($databaseName);
 
         $rootConnection->exec(sprintf(
-            'CREATE DATABASE %s CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
+            'CREATE DATABASE %s',
             $this->quoteIdentifier($identifier)
         ));
     }
@@ -49,8 +49,8 @@ final class TenantDatabaseManager
         $username = $this->assertIdentifier($databaseUser);
 
         $rootConnection->exec(sprintf(
-            "CREATE USER %s@'%%' IDENTIFIED BY %s",
-            $rootConnection->quote($username),
+            'CREATE USER %s WITH PASSWORD %s',
+            $this->quoteIdentifier($username),
             $rootConnection->quote($databasePassword)
         ));
     }
@@ -64,11 +64,28 @@ final class TenantDatabaseManager
         $username = $this->assertIdentifier($databaseUser);
 
         $rootConnection->exec(sprintf(
-            "GRANT ALL PRIVILEGES ON %s.* TO %s@'%%'",
+            'GRANT ALL PRIVILEGES ON DATABASE %s TO %s',
             $this->quoteIdentifier($database),
-            $rootConnection->quote($username)
+            $this->quoteIdentifier($username)
         ));
-        $rootConnection->exec('FLUSH PRIVILEGES');
+
+        $connection = config('database.connections.pgsql');
+        $host = (string) ($connection['host'] ?? '127.0.0.1');
+        $port = (int) ($connection['port'] ?? 5432);
+        $rootUsername = (string) ($connection['username'] ?? 'postgres');
+        $rootPassword = (string) ($connection['password'] ?? '');
+
+        $tenantDatabaseConnection = new PDO(
+            sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, $database),
+            $rootUsername,
+            $rootPassword,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+
+        $tenantDatabaseConnection->exec(sprintf(
+            'GRANT USAGE, CREATE ON SCHEMA public TO %s',
+            $this->quoteIdentifier($username)
+        ));
     }
 
     public function tenantConnection(
@@ -78,12 +95,12 @@ final class TenantDatabaseManager
     ): PDO {
         $database = $this->assertIdentifier($databaseName);
 
-        $connection = config('database.connections.mysql');
+        $connection = config('database.connections.pgsql');
         $host = (string) ($connection['host'] ?? '127.0.0.1');
-        $port = (int) ($connection['port'] ?? 3306);
+        $port = (int) ($connection['port'] ?? 5432);
 
         $dsn = sprintf(
-            'mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4',
+            'pgsql:host=%s;port=%d;dbname=%s',
             $host,
             $port,
             $database
@@ -110,22 +127,26 @@ final class TenantDatabaseManager
         $database = $this->assertIdentifier($databaseName);
         $username = $this->assertIdentifier($databaseUser);
 
-        if ($userCreated) {
+        if ($databaseCreated) {
             try {
                 $rootConnection->exec(sprintf(
-                    "DROP USER IF EXISTS %s@'%%'",
-                    $rootConnection->quote($username)
+                    'SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()',
+                    $rootConnection->quote($database)
+                ));
+                $rootConnection->exec(sprintf(
+                    'DROP DATABASE IF EXISTS %s',
+                    $this->quoteIdentifier($database)
                 ));
             } catch (Throwable) {
                 // Best effort rollback.
             }
         }
 
-        if ($databaseCreated) {
+        if ($userCreated) {
             try {
                 $rootConnection->exec(sprintf(
-                    'DROP DATABASE IF EXISTS %s',
-                    $this->quoteIdentifier($database)
+                    'DROP USER IF EXISTS %s',
+                    $this->quoteIdentifier($username)
                 ));
             } catch (Throwable) {
                 // Best effort rollback.
@@ -144,6 +165,6 @@ final class TenantDatabaseManager
 
     private function quoteIdentifier(string $identifier): string
     {
-        return '`' . str_replace('`', '``', $identifier) . '`';
+        return '"' . str_replace('"', '""', $identifier) . '"';
     }
 }

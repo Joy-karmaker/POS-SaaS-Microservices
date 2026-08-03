@@ -11,8 +11,16 @@ final class TenantSchemaProvisioner
     public function provision(PDO $connection): void
     {
         $queries = [
+            'CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql',
+
             'CREATE TABLE IF NOT EXISTS products (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
                 price DECIMAL(12,2) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -20,22 +28,27 @@ final class TenantSchemaProvisioner
             'CREATE TABLE IF NOT EXISTS inventory (
                 product_id INT PRIMARY KEY,
                 stock INT NOT NULL DEFAULT 0,
-                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                    ON UPDATE CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 CONSTRAINT fk_inventory_product
                     FOREIGN KEY (product_id) REFERENCES products(id)
                     ON DELETE CASCADE
             )',
+            'DROP TRIGGER IF EXISTS update_inventory_updated_at ON inventory',
+            'CREATE TRIGGER update_inventory_updated_at
+                BEFORE UPDATE ON inventory
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column()',
+
             'CREATE TABLE IF NOT EXISTS stores (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 tenant_id INT NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 code VARCHAR(32) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY uniq_stores_tenant_code (tenant_id, code)
+                CONSTRAINT uniq_stores_tenant_code UNIQUE (tenant_id, code)
             )',
             'CREATE TABLE IF NOT EXISTS shifts (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 tenant_id INT NOT NULL,
                 store_id INT NOT NULL,
                 user_id INT NOT NULL,
@@ -44,17 +57,18 @@ final class TenantSchemaProvisioner
                 opened_at TIMESTAMP NOT NULL,
                 closed_at TIMESTAMP NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                KEY idx_shifts_lookup (tenant_id, store_id, user_id, closed_at),
                 CONSTRAINT fk_shifts_store
                     FOREIGN KEY (store_id) REFERENCES stores(id)
                     ON DELETE CASCADE
             )',
+            'CREATE INDEX IF NOT EXISTS idx_shifts_lookup ON shifts (tenant_id, store_id, user_id, closed_at)',
+
             'CREATE TABLE IF NOT EXISTS staff_roles (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 name VARCHAR(64) NOT NULL,
                 code VARCHAR(32) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE KEY uniq_roles_code (code)
+                CONSTRAINT uniq_roles_code UNIQUE (code)
             )',
             'CREATE TABLE IF NOT EXISTS staff_profiles (
                 user_id INT PRIMARY KEY,
@@ -71,12 +85,12 @@ final class TenantSchemaProvisioner
                     FOREIGN KEY (role_id) REFERENCES staff_roles(id)
             )',
             'CREATE TABLE IF NOT EXISTS sales (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 total_amount DECIMAL(12,2) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )',
             'CREATE TABLE IF NOT EXISTS sale_items (
-                id INT AUTO_INCREMENT PRIMARY KEY,
+                id SERIAL PRIMARY KEY,
                 sale_id INT NOT NULL,
                 product_id INT NOT NULL,
                 quantity INT NOT NULL,
@@ -114,7 +128,7 @@ final class TenantSchemaProvisioner
         ];
 
         foreach ($roles as $role) {
-            $stmt = $connection->prepare('INSERT IGNORE INTO staff_roles (name, code) VALUES (?, ?)');
+            $stmt = $connection->prepare('INSERT INTO staff_roles (name, code) VALUES (?, ?) ON CONFLICT (code) DO NOTHING');
             $stmt->execute([$role['name'], $role['code']]);
         }
     }

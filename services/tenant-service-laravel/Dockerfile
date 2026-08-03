@@ -1,10 +1,13 @@
 FROM php:8.3-cli-alpine
 
-RUN apk add --no-cache pcre-dev ${PHPIZE_DEPS} \
+RUN apk add --no-cache postgresql-dev \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+    && pecl update-channels \
     && pecl install redis \
     && docker-php-ext-enable redis \
-    && docker-php-ext-install pdo pdo_mysql bcmath \
-    && apk del pcre-dev ${PHPIZE_DEPS}
+    && docker-php-ext-install pdo pdo_pgsql bcmath \
+    && apk del .build-deps \
+    && rm -rf /tmp/pear
 
 WORKDIR /app
 
