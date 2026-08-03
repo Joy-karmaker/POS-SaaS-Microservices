@@ -1,24 +1,24 @@
 name: pos-saas-microservices
 
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: pos-mysql
-    command: ["--mysql-native-password=ON", "--performance-schema=OFF", "--innodb-buffer-pool-size=64M", "--max-connections=100"]
+  postgres:
+    image: postgres:16-alpine
+    container_name: pos-postgres
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "${DB_PORT}:5432"
     volumes:
-      - mysql-data:/var/lib/mysql
-      - ./infra/mysql/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_DATABASE} || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 8
-      start_period: 20s
+      start_period: 10s
     networks:
       - pos-network
 
@@ -29,7 +29,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     ports:
-      - "${RABBITMQ_PORT}:5672"
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT}:15672"
     networks:
       - pos-network
@@ -53,12 +53,12 @@ services:
       APP_DEBUG: true
       APP_URL: http://localhost/tenant
       APP_KEY: ${TENANT_SERVICE_APP_KEY}
-      DB_CONNECTION: mysql
-      DB_HOST: ${MYSQL_HOST}
-      DB_PORT: ${MYSQL_PORT}
-      DB_DATABASE: ${MYSQL_DATABASE}
-      DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_CONNECTION: pgsql
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
       SESSION_DRIVER: ${SESSION_DRIVER}
       CACHE_STORE: ${CACHE_STORE}
       REDIS_HOST: ${REDIS_HOST}
@@ -86,7 +86,7 @@ services:
       RABBITMQ_QUEUE_SHIFT_CLOSED_DLQ: ${RABBITMQ_QUEUE_SHIFT_CLOSED_DLQ}
       RABBITMQ_PUBLISH_FAIL_HARD: ${RABBITMQ_PUBLISH_FAIL_HARD}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_started
@@ -106,12 +106,12 @@ services:
       APP_DEBUG: true
       APP_URL: http://localhost/auth
       APP_KEY: ${AUTH_SERVICE_APP_KEY}
-      DB_CONNECTION: mysql
-      DB_HOST: ${MYSQL_HOST}
-      DB_PORT: ${MYSQL_PORT}
-      DB_DATABASE: ${MYSQL_DATABASE}
-      DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_CONNECTION: pgsql
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
       SESSION_DRIVER: ${SESSION_DRIVER}
       CACHE_STORE: ${CACHE_STORE}
       REDIS_HOST: ${REDIS_HOST}
@@ -139,7 +139,7 @@ services:
       RABBITMQ_QUEUE_SHIFT_CLOSED_DLQ: ${RABBITMQ_QUEUE_SHIFT_CLOSED_DLQ}
       RABBITMQ_PUBLISH_FAIL_HARD: ${RABBITMQ_PUBLISH_FAIL_HARD}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_started
@@ -164,16 +164,16 @@ services:
       AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
       AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
       AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
-      DB_HOST: ${MYSQL_HOST}
-      DB_PORT: ${MYSQL_PORT}
-      DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
       RABBITMQ_HOST: ${RABBITMQ_HOST}
       RABBITMQ_PORT: ${RABBITMQ_PORT}
       RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_started
@@ -202,7 +202,7 @@ services:
       REDIS_PORT: ${REDIS_PORT}
       CATALOG_SERVICE_URL: http://catalog-service:3000
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_started
@@ -253,5 +253,5 @@ networks:
     driver: bridge
 
 volumes:
-  mysql-data:
+  postgres-data:
   frontend-node-modules:

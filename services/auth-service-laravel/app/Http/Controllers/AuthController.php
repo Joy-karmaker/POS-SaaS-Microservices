@@ -79,9 +79,8 @@ final class AuthController extends Controller
 
         // If tenantId is provided but is not numeric, it might be a slug (shop name)
         if ($resolvedTenantId !== null && !is_numeric($resolvedTenantId)) {
-            $tenant = DB::connection('mysql')->table('tenants')
+            $tenant = DB::connection()->table('tenants')
                 ->whereRaw("LOWER(REPLACE(name, ' ', '')) = ?", [Str::lower(trim($resolvedTenantId))])
-                ->orWhere('id', trim($resolvedTenantId))
                 ->first();
             
             if ($tenant) {
@@ -93,7 +92,7 @@ final class AuthController extends Controller
         
         // If not found with the stripped username, try the full username (backwards compatibility or convention)
         if ($user === null && $resolvedTenantId !== null && !str_contains($username, '.')) {
-            $tenant = DB::connection('mysql')->table('tenants')->where('id', $resolvedTenantId)->first();
+            $tenant = DB::connection()->table('tenants')->where('id', $resolvedTenantId)->first();
             if ($tenant) {
                 $prefix = Str::slug($tenant->name, '');
                 $user = $userRepository->findByUsername($prefix . '.' . $username, $resolvedTenantId);
