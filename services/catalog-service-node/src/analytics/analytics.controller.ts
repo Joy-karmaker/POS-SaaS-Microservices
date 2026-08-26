@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { AnalyticsService } from './analytics.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -26,7 +26,12 @@ export class AnalyticsController {
 
   @Post('seed-sales')
   seedSales(@CurrentUser() user: any, @Body('count') count?: number) {
-    const recordCount = count ? parseInt(count as any, 10) : 1000;
+    const recordCount = count === undefined ? 1000 : Number(count);
+    if (!Number.isInteger(recordCount) || recordCount < 1 || recordCount > 10_000) {
+      throw new BadRequestException('count must be an integer between 1 and 10000');
+    }
+
+
     return this.analyticsService.seedSimulationSales(Number(user.tenant_id), recordCount);
   }
 

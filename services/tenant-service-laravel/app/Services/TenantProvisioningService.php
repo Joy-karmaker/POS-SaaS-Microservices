@@ -9,8 +9,8 @@ use App\Repositories\TenantRepository;
 use App\Services\TenantProvisioning\TenantDatabaseManager;
 use App\Services\TenantProvisioning\TenantProvisioningPayloadFactory;
 use App\Services\TenantProvisioning\TenantSchemaProvisioner;
+use App\Services\Auth\AuthServiceClient;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -22,7 +22,8 @@ class TenantProvisioningService
         private readonly TenantRepository $tenantRepository,
         private readonly TenantProvisioningPayloadFactory $payloadFactory,
         private readonly TenantDatabaseManager $databaseManager,
-        private readonly TenantSchemaProvisioner $schemaProvisioner
+        private readonly TenantSchemaProvisioner $schemaProvisioner,
+        private readonly AuthServiceClient $authServiceClient
     ) {
     }
 
@@ -116,16 +117,13 @@ class TenantProvisioningService
 
     private function createOwnerIdentity(int $tenantId, string $password): void
     {
-        $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth-service:8080');
         $token = request()->bearerToken();
 
         if (empty($token)) {
             $token = request()->cookie('pos_access_token');
         }
 
-        $response = Http::withToken((string) $token)
-            ->withHeaders(['Accept' => 'application/json'])
-            ->post("{$authServiceUrl}/staff", [
+        $response = $this->authServiceClient->createStaff((string) $token, [
                 'tenant_id' => $tenantId,
                 'password' => $password !== '' ? $password : 'password123',
                 'role' => 'tenant_admin',

@@ -32,7 +32,7 @@ export function TenantLoginPage({ auth }) {
 
     const parts = username.trim().split('.')
     const tenantId = parts.length > 1 ? parts[0] : null
-    const actualUsername = parts.length > 1 ? parts.slice(1).join('.') : username.trim()
+    const actualUsername = username.trim()
 
     const user = await auth.login({
       username: actualUsername,

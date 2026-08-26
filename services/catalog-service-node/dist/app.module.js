@@ -11,7 +11,7 @@ Object.defineProperty(exports, "AppModule", {
 const _common = require("@nestjs/common");
 const _appcontroller = require("./app.controller");
 const _appservice = require("./app.service");
-const _prismaservice = require("./prisma.service");
+const _tenantmodule = require("./tenant/tenant.module");
 const _categorymodule = require("./category/category.module");
 const _productmodule = require("./product/product.module");
 const _inventorymodule = require("./inventory/inventory.module");
@@ -34,6 +34,7 @@ let AppModule = class AppModule {
 AppModule = _ts_decorate([
     (0, _common.Module)({
         imports: [
+            _tenantmodule.TenantModule,
             _categorymodule.CategoryModule,
             _productmodule.ProductModule,
             _inventorymodule.InventoryModule,
@@ -43,8 +44,7 @@ AppModule = _ts_decorate([
             _appcontroller.AppController
         ],
         providers: [
-            _appservice.AppService,
-            _prismaservice.PrismaService
+            _appservice.AppService
         ]
     })
 ], AppModule);

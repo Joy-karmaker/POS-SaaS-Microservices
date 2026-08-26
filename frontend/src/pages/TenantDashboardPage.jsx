@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HealthCard } from '../components/HealthCard'
 import { TenantNav } from '../components/TenantNav'
 import { useServiceHealth } from '../hooks/useServiceHealth'
@@ -47,6 +47,13 @@ export function TenantDashboardPage({ user }) {
     }
   }
 
+  // Keep the socket listeners connected while always calling the latest
+  // pagination-aware refresh functions.
+  const fetchSummaryRef = useRef(fetchSummary)
+  const fetchForecastRef = useRef(fetchForecast)
+  fetchSummaryRef.current = fetchSummary
+  fetchForecastRef.current = fetchForecast
+
   // Initial load
   useEffect(() => {
     fetchSummary()
@@ -62,29 +69,38 @@ export function TenantDashboardPage({ user }) {
     const socket = io(window.location.origin, {
       path: '/catalog/socket.io',
       transports: ['websocket'],
-      upgrade: false
+      upgrade: false,
+      // The access token is deliberately an HTTP-only cookie, so Socket.IO
+      // must include credentials during the handshake as well.
+      withCredentials: true,
     })
 
     socket.on('connect', () => {
       console.log('Connected to real-time analytics sync channel')
     })
 
+    socket.on('connect_error', (err) => {
+      console.warn('Real-time analytics connection failed:', err.message)
+    })
+
     socket.on('stock_updated', () => {
       // Refresh analytics in background on any stock adjustments
-      fetchSummary()
-      fetchForecast()
+      fetchSummaryRef.current()
+      fetchForecastRef.current()
     })
 
     socket.on('product_updated', () => {
       // Refresh analytics in background on any product updates
-      fetchSummary()
-      fetchForecast()
+      fetchSummaryRef.current()
+      fetchForecastRef.current()
     })
 
     return () => {
       socket.disconnect()
     }
-  }, [page, limit])
+  // A socket connection is independent of pagination. Recreating it when a
+  // user changes page/limit can abort an in-flight WebSocket handshake.
+  }, [])
 
   // Handlers
   const handleSeedSales = async (e) => {
@@ -93,8 +109,8 @@ export function TenantDashboardPage({ user }) {
     try {
       const res = await seedSimulationSales(seedCount)
       alert(res.message || 'Seeded sales successfully!')
-      fetchSummary()
-      fetchForecast()
+      fetchSummaryRef.current()
+      fetchForecastRef.current()
     } catch (err) {
       console.error(err)
       alert('Failed to seed simulation sales data')
@@ -108,8 +124,8 @@ export function TenantDashboardPage({ user }) {
     try {
       const res = await recalculateAnalytics()
       alert(res.message || 'Forecasting models recalculated!')
-      fetchSummary()
-      fetchForecast()
+      fetchSummaryRef.current()
+      fetchForecastRef.current()
     } catch (err) {
       console.error(err)
       alert('Failed to recalculate forecasts')

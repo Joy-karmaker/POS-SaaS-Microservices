@@ -11,7 +11,6 @@ Object.defineProperty(exports, "ProductModule", {
 const _common = require("@nestjs/common");
 const _productservice = require("./product.service");
 const _productcontroller = require("./product.controller");
-const _prismaservice = require("../prisma.service");
 const _inventorymodule = require("../inventory/inventory.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -37,8 +36,10 @@ ProductModule = _ts_decorate([
             _productcontroller.ProductController
         ],
         providers: [
-            _productservice.ProductService,
-            _prismaservice.PrismaService
+            _productservice.ProductService
+        ],
+        exports: [
+            _productservice.ProductService
         ]
     })
 ], ProductModule);

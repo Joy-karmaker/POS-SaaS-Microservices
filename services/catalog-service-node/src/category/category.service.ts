@@ -1,38 +1,34 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantConnectionService } from '../tenant/tenant-connection.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 @Injectable()
 export class CategoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private tenantConnectionService: TenantConnectionService) {}
 
   async create(tenantId: number, createCategoryDto: CreateCategoryDto) {
-    return this.prisma.category.create({
-      data: {
-        ...createCategoryDto,
-        tenant_id: Number(tenantId),
-      },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    return client.category.create({
+      data: createCategoryDto,
     });
   }
 
-  async findAll(tenantId: number, options?: { page?: number, limit?: number }) {
-    const where = { tenant_id: Number(tenantId) };
-    
-    // If pagination is requested
+  async findAll(tenantId: number, options?: { page?: number; limit?: number }) {
+    const client = await this.tenantConnectionService.getClient(tenantId);
+
     if (options && options.page) {
       const page = options.page || 1;
       const limit = options.limit || 5;
       const skip = (page - 1) * limit;
 
       const [data, total] = await Promise.all([
-        this.prisma.category.findMany({
-          where,
+        client.category.findMany({
           skip,
           take: limit,
-          orderBy: { id: 'desc' }
+          orderBy: { id: 'desc' },
         }),
-        this.prisma.category.count({ where }),
+        client.category.count(),
       ]);
 
       return {
@@ -46,16 +42,15 @@ export class CategoryService {
       };
     }
 
-    // Default: return all without pagination (for backwards compatibility if needed)
-    return this.prisma.category.findMany({
-      where,
-      orderBy: { id: 'desc' }
+    return client.category.findMany({
+      orderBy: { id: 'desc' },
     });
   }
 
   async findOne(tenantId: number, id: number) {
-    const category = await this.prisma.category.findFirst({
-      where: { id, tenant_id: Number(tenantId) },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    const category = await client.category.findUnique({
+      where: { id },
     });
 
     if (!category) {
@@ -66,20 +61,20 @@ export class CategoryService {
   }
 
   async update(tenantId: number, id: number, updateCategoryDto: UpdateCategoryDto) {
-    // Ensure category exists for this tenant
     await this.findOne(tenantId, id);
+    const client = await this.tenantConnectionService.getClient(tenantId);
 
-    return this.prisma.category.update({
+    return client.category.update({
       where: { id },
       data: updateCategoryDto,
     });
   }
 
   async remove(tenantId: number, id: number) {
-    // Ensure category exists for this tenant
     await this.findOne(tenantId, id);
+    const client = await this.tenantConnectionService.getClient(tenantId);
 
-    return this.prisma.category.delete({
+    return client.category.delete({
       where: { id },
     });
   }

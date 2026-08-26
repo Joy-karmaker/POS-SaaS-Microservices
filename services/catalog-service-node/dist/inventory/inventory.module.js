@@ -12,7 +12,6 @@ const _common = require("@nestjs/common");
 const _inventoryservice = require("./inventory.service");
 const _inventorycontroller = require("./inventory.controller");
 const _inventorygateway = require("./inventory.gateway");
-const _prismaservice = require("../prisma.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -35,11 +34,11 @@ InventoryModule = _ts_decorate([
         ],
         providers: [
             _inventoryservice.InventoryService,
-            _inventorygateway.InventoryGateway,
-            _prismaservice.PrismaService
+            _inventorygateway.InventoryGateway
         ],
         exports: [
-            _inventorygateway.InventoryGateway
+            _inventorygateway.InventoryGateway,
+            _inventoryservice.InventoryService
         ]
     })
 ], InventoryModule);

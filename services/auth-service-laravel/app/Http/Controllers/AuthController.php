@@ -98,7 +98,7 @@ final class AuthController extends Controller
                 $user = $userRepository->findByUsername($prefix . '.' . $username, $resolvedTenantId);
             }
         }
-
+    
         if ($user === null || !Hash::check($password, (string) $user->password)) {
             RateLimiter::hit($throttleKey, 60);
             return response()->json([

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantConnectionService } from '../tenant/tenant-connection.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InventoryGateway } from '../inventory/inventory.gateway';
@@ -7,18 +7,16 @@ import { InventoryGateway } from '../inventory/inventory.gateway';
 @Injectable()
 export class ProductService {
   constructor(
-    private prisma: PrismaService,
+    private tenantConnectionService: TenantConnectionService,
     private inventoryGateway: InventoryGateway,
   ) {}
 
   async create(tenantId: number, createProductDto: CreateProductDto) {
     const { image_url, ...rest } = createProductDto as any;
-    
-    const product = await this.prisma.product.create({
-      data: {
-        ...rest,
-        tenant_id: Number(tenantId),
-      },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+
+    const product = await client.product.create({
+      data: rest,
       include: { category: true },
     });
 
@@ -26,30 +24,31 @@ export class ProductService {
     return product;
   }
 
-  async findAll(tenantId: number, options?: { page?: number, limit?: number, search?: string, categoryId?: number }) {
+  async findAll(tenantId: number, options?: { page?: number; limit?: number; search?: string; categoryId?: number }) {
+    const client = await this.tenantConnectionService.getClient(tenantId);
     const page = options?.page || 1;
     const limit = options?.limit || 10;
     const skip = (page - 1) * limit;
 
-    const where: any = { tenant_id: Number(tenantId) };
-    
+    const where: any = {};
+
     if (options?.search) {
       where.name = { contains: options.search };
     }
-    
+
     if (options?.categoryId) {
       where.category_id = options.categoryId;
     }
 
     const [data, total] = await Promise.all([
-      this.prisma.product.findMany({
+      client.product.findMany({
         where,
         include: { category: true },
         skip,
         take: limit,
-        orderBy: { id: 'desc' }
+        orderBy: { id: 'desc' },
       }),
-      this.prisma.product.count({ where }),
+      client.product.count({ where }),
     ]);
 
     return {
@@ -64,16 +63,17 @@ export class ProductService {
   }
 
   async getSearchIndex(tenantId: number) {
-    return this.prisma.product.findMany({
-      where: { tenant_id: Number(tenantId) },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    return client.product.findMany({
       include: { category: true },
-      orderBy: { id: 'desc' }
+      orderBy: { id: 'desc' },
     });
   }
 
   async findOne(tenantId: number, id: number) {
-    const product = await this.prisma.product.findFirst({
-      where: { id, tenant_id: Number(tenantId) },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    const product = await client.product.findUnique({
+      where: { id },
       include: { category: true },
     });
 
@@ -85,17 +85,15 @@ export class ProductService {
   }
 
   async update(tenantId: number, id: number, updateProductDto: UpdateProductDto) {
-    // Ensure product exists for this tenant
     await this.findOne(tenantId, id);
+    const client = await this.tenantConnectionService.getClient(tenantId);
 
     const { category_id, ...rest } = updateProductDto as any;
-    
-    // Prisma strips unknown fields at compile time but throws at runtime if passing unexpected keys.
-    // Ensure we don't pass frontend-only fields like image_url if they aren't in schema.
+
     if ('image_url' in rest) delete rest.image_url;
 
     const updateData: any = { ...rest };
-    
+
     if (category_id !== undefined) {
       if (category_id === null) {
         updateData.category = { disconnect: true };
@@ -104,7 +102,7 @@ export class ProductService {
       }
     }
 
-    const updatedProduct = await this.prisma.product.update({
+    const updatedProduct = await client.product.update({
       where: { id },
       data: updateData,
       include: { category: true },
@@ -115,10 +113,10 @@ export class ProductService {
   }
 
   async remove(tenantId: number, id: number) {
-    // Ensure product exists for this tenant
     await this.findOne(tenantId, id);
+    const client = await this.tenantConnectionService.getClient(tenantId);
 
-    const deletedProduct = await this.prisma.product.delete({
+    const deletedProduct = await client.product.delete({
       where: { id },
     });
 

@@ -75,6 +75,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['platform_admin']}
               loginPath="/admin/login"
             >
@@ -90,6 +91,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin']}
               allowedBusinessRoles={['admin']}
               loginPath="/app/login"
@@ -106,6 +108,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
               allowedBusinessRoles={['admin', 'manager']}
               loginPath="/app/login"
@@ -122,6 +125,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
               allowedBusinessRoles={['admin', 'manager', 'cashier']}
               loginPath="/app/login"
@@ -138,6 +142,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
               allowedBusinessRoles={['admin', 'manager']}
               loginPath="/app/login"
@@ -154,6 +159,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
               allowedBusinessRoles={['admin', 'manager', 'cashier']}
               loginPath="/app/login"
@@ -170,6 +176,7 @@ function App() {
               isLoadingSession={auth.isLoadingSession}
               isAuthenticated={auth.isAuthenticated}
               user={auth.user}
+              tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
               allowedBusinessRoles={['admin', 'manager', 'staff']}
               loginPath="/app/login"

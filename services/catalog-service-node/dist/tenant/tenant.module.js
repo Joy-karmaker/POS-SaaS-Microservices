@@ -2,16 +2,14 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "AnalyticsModule", {
+Object.defineProperty(exports, "TenantModule", {
     enumerable: true,
     get: function() {
-        return AnalyticsModule;
+        return TenantModule;
     }
 });
 const _common = require("@nestjs/common");
-const _analyticsservice = require("./analytics.service");
-const _analyticscontroller = require("./analytics.controller");
-const _inventorymodule = require("../inventory/inventory.module");
+const _tenantconnectionservice = require("./tenant-connection.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -25,23 +23,18 @@ function _ts_decorate(decorators, target, key, desc) {
     }
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 }
-let AnalyticsModule = class AnalyticsModule {
+let TenantModule = class TenantModule {
 };
-AnalyticsModule = _ts_decorate([
+TenantModule = _ts_decorate([
+    (0, _common.Global)(),
     (0, _common.Module)({
-        imports: [
-            _inventorymodule.InventoryModule
-        ],
-        controllers: [
-            _analyticscontroller.AnalyticsController
-        ],
         providers: [
-            _analyticsservice.AnalyticsService
+            _tenantconnectionservice.TenantConnectionService
         ],
         exports: [
-            _analyticsservice.AnalyticsService
+            _tenantconnectionservice.TenantConnectionService
         ]
     })
-], AnalyticsModule);
+], TenantModule);
 
-//# sourceMappingURL=analytics.module.js.map
+//# sourceMappingURL=tenant.module.js.map

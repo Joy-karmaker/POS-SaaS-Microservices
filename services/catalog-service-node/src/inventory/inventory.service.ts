@@ -1,33 +1,34 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma.service';
+import { TenantConnectionService } from '../tenant/tenant-connection.service';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { InventoryGateway } from './inventory.gateway';
 
 @Injectable()
 export class InventoryService {
   constructor(
-    private prisma: PrismaService,
+    private tenantConnectionService: TenantConnectionService,
     private inventoryGateway: InventoryGateway,
   ) {}
 
   async adjustStock(tenantId: number, adjustStockDto: AdjustStockDto) {
     const { product_id, quantity_change } = adjustStockDto;
+    const client = await this.tenantConnectionService.getClient(tenantId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return client.$transaction(async (tx) => {
       // Perform pessimistic lock using SELECT ... FOR UPDATE
       const products: any[] = await tx.$queryRaw`
         SELECT * FROM products 
-        WHERE id = ${product_id} AND tenant_id = ${tenantId} 
+        WHERE id = ${product_id} 
         FOR UPDATE
       `;
 
       const product = products[0];
 
       if (!product) {
-        throw new NotFoundException(`Product #${product_id} not found for this tenant`);
+        throw new NotFoundException(`Product #${product_id} not found`);
       }
 
-      const newQuantity = product.stock_quantity + quantity_change;
+      const newQuantity = Number(product.stock_quantity) + quantity_change;
 
       if (newQuantity < 0) {
         throw new BadRequestException(`Cannot reduce stock below 0. Current stock: ${product.stock_quantity}`);
@@ -36,10 +37,9 @@ export class InventoryService {
       // 1. If it's a negative adjustment (representing a sale), record the sale transaction
       if (quantity_change < 0) {
         const totalAmount = Number(product.price) * Math.abs(quantity_change);
-        
+
         const sale = await tx.sale.create({
           data: {
-            tenant_id: tenantId,
             total_amount: totalAmount,
           },
         });
@@ -65,7 +65,6 @@ export class InventoryService {
         where: {
           product_id: product_id,
           sale: {
-            tenant_id: tenantId,
             created_at: {
               gte: thirtyDaysAgo,
             },
@@ -106,14 +105,15 @@ export class InventoryService {
       // 4. Broadcast real-time stock and forecasting updates to all connected cashiers/admins
       this.inventoryGateway.broadcastStockUpdate(tenantId, product_id, newQuantity);
       this.inventoryGateway.broadcastProductUpdated(tenantId, updatedProduct);
-      
+
       return updatedProduct;
     });
   }
 
   async getStock(tenantId: number, productId: number) {
-    const product = await this.prisma.product.findFirst({
-      where: { id: productId, tenant_id: tenantId },
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    const product = await client.product.findUnique({
+      where: { id: productId },
       select: { id: true, name: true, stock_quantity: true },
     });
 

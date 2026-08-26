@@ -9,7 +9,7 @@ Object.defineProperty(exports, "CategoryService", {
     }
 });
 const _common = require("@nestjs/common");
-const _prismaservice = require("../prisma.service");
+const _tenantconnectionservice = require("../tenant/tenant-connection.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -30,34 +30,26 @@ function _ts_metadata(metadataKey, metadataValue) {
 }
 let CategoryService = class CategoryService {
     async create(tenantId, createCategoryDto) {
-        return this.prisma.category.create({
-            data: {
-                ...createCategoryDto,
-                tenant_id: Number(tenantId)
-            }
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        return client.category.create({
+            data: createCategoryDto
         });
     }
     async findAll(tenantId, options) {
-        const where = {
-            tenant_id: Number(tenantId)
-        };
-        // If pagination is requested
+        const client = await this.tenantConnectionService.getClient(tenantId);
         if (options && options.page) {
             const page = options.page || 1;
             const limit = options.limit || 5;
             const skip = (page - 1) * limit;
             const [data, total] = await Promise.all([
-                this.prisma.category.findMany({
-                    where,
+                client.category.findMany({
                     skip,
                     take: limit,
                     orderBy: {
                         id: 'desc'
                     }
                 }),
-                this.prisma.category.count({
-                    where
-                })
+                client.category.count()
             ]);
             return {
                 data,
@@ -69,19 +61,17 @@ let CategoryService = class CategoryService {
                 }
             };
         }
-        // Default: return all without pagination (for backwards compatibility if needed)
-        return this.prisma.category.findMany({
-            where,
+        return client.category.findMany({
             orderBy: {
                 id: 'desc'
             }
         });
     }
     async findOne(tenantId, id) {
-        const category = await this.prisma.category.findFirst({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const category = await client.category.findUnique({
             where: {
-                id,
-                tenant_id: Number(tenantId)
+                id
             }
         });
         if (!category) {
@@ -90,9 +80,9 @@ let CategoryService = class CategoryService {
         return category;
     }
     async update(tenantId, id, updateCategoryDto) {
-        // Ensure category exists for this tenant
         await this.findOne(tenantId, id);
-        return this.prisma.category.update({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        return client.category.update({
             where: {
                 id
             },
@@ -100,23 +90,23 @@ let CategoryService = class CategoryService {
         });
     }
     async remove(tenantId, id) {
-        // Ensure category exists for this tenant
         await this.findOne(tenantId, id);
-        return this.prisma.category.delete({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        return client.category.delete({
             where: {
                 id
             }
         });
     }
-    constructor(prisma){
-        this.prisma = prisma;
+    constructor(tenantConnectionService){
+        this.tenantConnectionService = tenantConnectionService;
     }
 };
 CategoryService = _ts_decorate([
     (0, _common.Injectable)(),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService
+        typeof _tenantconnectionservice.TenantConnectionService === "undefined" ? Object : _tenantconnectionservice.TenantConnectionService
     ])
 ], CategoryService);
 

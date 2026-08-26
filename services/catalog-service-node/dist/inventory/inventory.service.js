@@ -9,7 +9,7 @@ Object.defineProperty(exports, "InventoryService", {
     }
 });
 const _common = require("@nestjs/common");
-const _prismaservice = require("../prisma.service");
+const _tenantconnectionservice = require("../tenant/tenant-connection.service");
 const _inventorygateway = require("./inventory.gateway");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -32,18 +32,19 @@ function _ts_metadata(metadataKey, metadataValue) {
 let InventoryService = class InventoryService {
     async adjustStock(tenantId, adjustStockDto) {
         const { product_id, quantity_change } = adjustStockDto;
-        return this.prisma.$transaction(async (tx)=>{
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        return client.$transaction(async (tx)=>{
             // Perform pessimistic lock using SELECT ... FOR UPDATE
             const products = await tx.$queryRaw`
         SELECT * FROM products 
-        WHERE id = ${product_id} AND tenant_id = ${tenantId} 
+        WHERE id = ${product_id} 
         FOR UPDATE
       `;
             const product = products[0];
             if (!product) {
-                throw new _common.NotFoundException(`Product #${product_id} not found for this tenant`);
+                throw new _common.NotFoundException(`Product #${product_id} not found`);
             }
-            const newQuantity = product.stock_quantity + quantity_change;
+            const newQuantity = Number(product.stock_quantity) + quantity_change;
             if (newQuantity < 0) {
                 throw new _common.BadRequestException(`Cannot reduce stock below 0. Current stock: ${product.stock_quantity}`);
             }
@@ -52,7 +53,6 @@ let InventoryService = class InventoryService {
                 const totalAmount = Number(product.price) * Math.abs(quantity_change);
                 const sale = await tx.sale.create({
                     data: {
-                        tenant_id: tenantId,
                         total_amount: totalAmount
                     }
                 });
@@ -75,7 +75,6 @@ let InventoryService = class InventoryService {
                 where: {
                     product_id: product_id,
                     sale: {
-                        tenant_id: tenantId,
                         created_at: {
                             gte: thirtyDaysAgo
                         }
@@ -118,10 +117,10 @@ let InventoryService = class InventoryService {
         });
     }
     async getStock(tenantId, productId) {
-        const product = await this.prisma.product.findFirst({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const product = await client.product.findUnique({
             where: {
-                id: productId,
-                tenant_id: tenantId
+                id: productId
             },
             select: {
                 id: true,
@@ -134,8 +133,8 @@ let InventoryService = class InventoryService {
         }
         return product;
     }
-    constructor(prisma, inventoryGateway){
-        this.prisma = prisma;
+    constructor(tenantConnectionService, inventoryGateway){
+        this.tenantConnectionService = tenantConnectionService;
         this.inventoryGateway = inventoryGateway;
     }
 };
@@ -143,7 +142,7 @@ InventoryService = _ts_decorate([
     (0, _common.Injectable)(),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService,
+        typeof _tenantconnectionservice.TenantConnectionService === "undefined" ? Object : _tenantconnectionservice.TenantConnectionService,
         typeof _inventorygateway.InventoryGateway === "undefined" ? Object : _inventorygateway.InventoryGateway
     ])
 ], InventoryService);

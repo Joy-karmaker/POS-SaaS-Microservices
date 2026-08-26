@@ -142,7 +142,8 @@ export function TenantCatalogPage({ user }) {
     const socket = io(window.location.origin, {
       path: '/catalog/socket.io',
       transports: ['websocket'],
-      upgrade: false
+      upgrade: false,
+      withCredentials: true,
     })
 
     socket.on('connect', () => {
