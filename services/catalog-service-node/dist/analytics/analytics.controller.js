@@ -45,7 +45,10 @@ let AnalyticsController = class AnalyticsController {
         return this.analyticsService.getForecastList(Number(user.tenant_id), p, l);
     }
     seedSales(user, count) {
-        const recordCount = count ? parseInt(count, 10) : 1000;
+        const recordCount = count === undefined ? 1000 : Number(count);
+        if (!Number.isInteger(recordCount) || recordCount < 1 || recordCount > 10_000) {
+            throw new _common.BadRequestException('count must be an integer between 1 and 10000');
+        }
         return this.analyticsService.seedSimulationSales(Number(user.tenant_id), recordCount);
     }
     recalculate(user) {

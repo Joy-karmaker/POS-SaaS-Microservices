@@ -11,7 +11,6 @@ Object.defineProperty(exports, "CategoryModule", {
 const _common = require("@nestjs/common");
 const _categoryservice = require("./category.service");
 const _categorycontroller = require("./category.controller");
-const _prismaservice = require("../prisma.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -33,8 +32,10 @@ CategoryModule = _ts_decorate([
             _categorycontroller.CategoryController
         ],
         providers: [
-            _categoryservice.CategoryService,
-            _prismaservice.PrismaService
+            _categoryservice.CategoryService
+        ],
+        exports: [
+            _categoryservice.CategoryService
         ]
     })
 ], CategoryModule);

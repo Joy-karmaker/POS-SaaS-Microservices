@@ -9,7 +9,7 @@ Object.defineProperty(exports, "AnalyticsService", {
     }
 });
 const _common = require("@nestjs/common");
-const _prismaservice = require("../prisma.service");
+const _tenantconnectionservice = require("../tenant/tenant-connection.service");
 const _inventorygateway = require("../inventory/inventory.gateway");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -33,12 +33,11 @@ let AnalyticsService = class AnalyticsService {
     /**
    * Recalculates and updates sales velocity and stock-out date for a specific product.
    */ async recalculateProductForecast(tenantId, productId, tx) {
-        const client = tx || this.prisma;
+        const client = tx || await this.tenantConnectionService.getClient(tenantId);
         // 1. Fetch the product
-        const product = await client.product.findFirst({
+        const product = await client.product.findUnique({
             where: {
-                id: productId,
-                tenant_id: tenantId
+                id: productId
             }
         });
         if (!product) {
@@ -54,7 +53,6 @@ let AnalyticsService = class AnalyticsService {
             where: {
                 product_id: productId,
                 sale: {
-                    tenant_id: tenantId,
                     created_at: {
                         gte: thirtyDaysAgo
                     }
@@ -99,17 +97,15 @@ let AnalyticsService = class AnalyticsService {
     /**
    * Recalculates metrics for ALL products of a tenant in batch.
    */ async recalculateAllProductsForecast(tenantId) {
-        const products = await this.prisma.product.findMany({
-            where: {
-                tenant_id: tenantId
-            },
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const products = await client.product.findMany({
             select: {
                 id: true
             }
         });
         const results = [];
         for (const p of products){
-            const updated = await this.recalculateProductForecast(tenantId, p.id);
+            const updated = await this.recalculateProductForecast(tenantId, p.id, client);
             results.push(updated);
         }
         return {
@@ -120,22 +116,21 @@ let AnalyticsService = class AnalyticsService {
     /**
    * Returns high-level KPIs for the Inventory Analytics Dashboard.
    */ async getAnalyticsSummary(tenantId) {
+        const client = await this.tenantConnectionService.getClient(tenantId);
         const now = new Date();
         const threeDaysFromNow = new Date();
         threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
         const sevenDaysFromNow = new Date();
         sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
         // 1. Out of stock count
-        const outOfStockCount = await this.prisma.product.count({
+        const outOfStockCount = await client.product.count({
             where: {
-                tenant_id: tenantId,
                 stock_quantity: 0
             }
         });
         // 2. Critical stock-out risk (<3 days)
-        const criticalRiskCount = await this.prisma.product.count({
+        const criticalRiskCount = await client.product.count({
             where: {
-                tenant_id: tenantId,
                 stock_quantity: {
                     gt: 0
                 },
@@ -146,9 +141,8 @@ let AnalyticsService = class AnalyticsService {
             }
         });
         // 3. Low stock-out risk (3-7 days)
-        const lowRiskCount = await this.prisma.product.count({
+        const lowRiskCount = await client.product.count({
             where: {
-                tenant_id: tenantId,
                 stock_quantity: {
                     gt: 0
                 },
@@ -159,9 +153,8 @@ let AnalyticsService = class AnalyticsService {
             }
         });
         // 4. Stable stock count
-        const stableStockCount = await this.prisma.product.count({
+        const stableStockCount = await client.product.count({
             where: {
-                tenant_id: tenantId,
                 OR: [
                     {
                         stock_out_date: {
@@ -178,10 +171,7 @@ let AnalyticsService = class AnalyticsService {
             }
         });
         // 5. Find top sales velocity product
-        const topVelocityProduct = await this.prisma.product.findFirst({
-            where: {
-                tenant_id: tenantId
-            },
+        const topVelocityProduct = await client.product.findFirst({
             orderBy: {
                 sales_velocity: 'desc'
             },
@@ -202,16 +192,10 @@ let AnalyticsService = class AnalyticsService {
     /**
    * Returns list of products sorted by stock-out priority (highest risk first).
    */ async getForecastList(tenantId, page = 1, limit = 10) {
+        const client = await this.tenantConnectionService.getClient(tenantId);
         const skip = (page - 1) * limit;
-        const where = {
-            tenant_id: tenantId
-        };
-        // Query sorted by stock_out_date ascending, placing nulls (never stocks out) at the end
-        // Prisma does not natively support NULLS LAST easily in standard findMany, so we will use a raw order query or sort logic.
-        // However, we can order by stock_out_date ascending and handle the listing elegantly.
         const [products, total] = await Promise.all([
-            this.prisma.product.findMany({
-                where,
+            client.product.findMany({
                 include: {
                     category: true
                 },
@@ -226,12 +210,8 @@ let AnalyticsService = class AnalyticsService {
                     }
                 ]
             }),
-            this.prisma.product.count({
-                where
-            })
+            client.product.count()
         ]);
-        // To ensure "Never" products (null stock_out_date) display at the bottom but are still in pagination, 
-        // we fetch and let the frontend handle the presentation.
         return {
             data: products,
             meta: {
@@ -243,28 +223,20 @@ let AnalyticsService = class AnalyticsService {
         };
     }
     /**
-   * Seeds historical sales data over the past 30 days to simulate standard load and test performance.
+   * Seeds historical sales data over the past 30 days directly in the tenant's dedicated database.
    */ async seedSimulationSales(tenantId, totalSales = 1000) {
-        const products = await this.prisma.product.findMany({
-            where: {
-                tenant_id: tenantId
-            }
-        });
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const products = await client.product.findMany();
         if (products.length === 0) {
             throw new _common.NotFoundException('No products found to seed sales for. Please create products first.');
         }
-        // Seed sales in batches to prevent transaction locks or memory overhead
         const batchSize = 100;
-        const now = new Date();
         for(let batch = 0; batch < totalSales; batch += batchSize){
             const currentBatchSize = Math.min(batchSize, totalSales - batch);
-            await this.prisma.$transaction(async (tx)=>{
+            await client.$transaction(async (tx)=>{
                 for(let i = 0; i < currentBatchSize; i++){
-                    // 1. Generate random date within the last 30 days
-                    const randomDaysAgo = Math.random() * 30;
-                    const saleDate = new Date();
-                    saleDate.setFloatSeconds(saleDate.getFloatSeconds() - randomDaysAgo * 24 * 60 * 60);
-                    // 2. Select 1 to 5 random products for this sale
+                    const randomTimeAgoMs = Math.random() * 30 * 24 * 60 * 60 * 1000;
+                    const saleDate = new Date(Date.now() - randomTimeAgoMs);
                     const numItems = Math.floor(Math.random() * 4) + 1;
                     const selectedProducts = [
                         ...products
@@ -272,7 +244,6 @@ let AnalyticsService = class AnalyticsService {
                     let saleTotal = 0;
                     const itemsToCreate = [];
                     for (const prod of selectedProducts){
-                        // Random quantity between 1 and 8 units
                         const qty = Math.floor(Math.random() * 8) + 1;
                         const price = Number(prod.price);
                         saleTotal += price * qty;
@@ -282,15 +253,12 @@ let AnalyticsService = class AnalyticsService {
                             price: price
                         });
                     }
-                    // 3. Insert Sale
                     const createdSale = await tx.sale.create({
                         data: {
-                            tenant_id: tenantId,
                             total_amount: saleTotal,
                             created_at: saleDate
                         }
                     });
-                    // 4. Insert SaleItems
                     await tx.saleItem.createMany({
                         data: itemsToCreate.map((item)=>({
                                 ...item,
@@ -304,11 +272,11 @@ let AnalyticsService = class AnalyticsService {
         await this.recalculateAllProductsForecast(tenantId);
         return {
             success: true,
-            message: `Successfully seeded ${totalSales} sales transactions and updated all forecasting models.`
+            message: `Successfully seeded ${totalSales} sales transactions into tenant database and updated all forecasting models.`
         };
     }
-    constructor(prisma, inventoryGateway){
-        this.prisma = prisma;
+    constructor(tenantConnectionService, inventoryGateway){
+        this.tenantConnectionService = tenantConnectionService;
         this.inventoryGateway = inventoryGateway;
     }
 };
@@ -316,15 +284,9 @@ AnalyticsService = _ts_decorate([
     (0, _common.Injectable)(),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService,
+        typeof _tenantconnectionservice.TenantConnectionService === "undefined" ? Object : _tenantconnectionservice.TenantConnectionService,
         typeof _inventorygateway.InventoryGateway === "undefined" ? Object : _inventorygateway.InventoryGateway
     ])
 ], AnalyticsService);
-Date.prototype.getFloatSeconds = function() {
-    return this.getTime() / 1000;
-};
-Date.prototype.setFloatSeconds = function(seconds) {
-    this.setTime(seconds * 1000);
-};
 
 //# sourceMappingURL=analytics.service.js.map

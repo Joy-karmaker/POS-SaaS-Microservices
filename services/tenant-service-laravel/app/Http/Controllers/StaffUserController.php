@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Repositories\StaffProfileRepository;
+use App\Services\Auth\AuthServiceClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 final class StaffUserController extends Controller
 {
     public function __construct(
-        private readonly StaffProfileRepository $profileRepository
+        private readonly StaffProfileRepository $profileRepository,
+        private readonly AuthServiceClient $authServiceClient
     ) {
     }
 
@@ -32,22 +33,26 @@ final class StaffUserController extends Controller
             return $this->jsonError('Forbidden.', 403);
         }
 
+        // Tenant owners do not need a staff-profile record. Resolve this from
+        // the authenticated JWT before opening the tenant database connection;
+        // doing so also keeps their session usable when a legacy encrypted
+        // tenant connection password can no longer be decrypted.
+        $roleLabel = (string) ($claims['role'] ?? '');
+        if ($roleLabel === 'tenant_admin' || $roleLabel === 'platform_admin') {
+            return response()->json([
+                'profile' => [
+                    'user_id' => $userId,
+                    'role_code' => 'admin',
+                    'role_name' => 'Shop Owner',
+                    'full_name' => 'Administrator',
+                ],
+            ]);
+        }
+
         try {
             $profile = $this->profileRepository->findByUserId($tenantId, $userId);
-            
-            // If no profile found, but user is tenant_admin, they are the shop owner
+
             if (!$profile) {
-                $roleLabel = (string)($claims['role'] ?? '');
-                if ($roleLabel === 'tenant_admin' || $roleLabel === 'platform_admin') {
-                    return response()->json([
-                        'profile' => [
-                            'user_id' => $userId,
-                            'role_code' => 'admin',
-                            'role_name' => 'Shop Owner',
-                            'full_name' => 'Administrator',
-                        ]
-                    ]);
-                }
                 return $this->jsonError('Profile not found.', 404);
             }
 
@@ -108,9 +113,7 @@ final class StaffUserController extends Controller
             $profiles = $this->profileRepository->all($tenantId);
 
             $token = (string) ($request->cookie('pos_access_token') ?? $request->bearerToken() ?? '');
-            $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth-service:8080');
-            $authResponse = Http::withToken($token)
-                ->get("{$authServiceUrl}/auth/staff", ['tenant_id' => $tenantId]);
+            $authResponse = $this->authServiceClient->listStaff($token, $tenantId);
             
             $authUsers = [];
             if ($authResponse->successful()) {
@@ -171,14 +174,12 @@ final class StaffUserController extends Controller
             // 1. Create Identity in Auth Service
             // We still use 'user' as the base role for auth permissions
             $token = (string) ($request->cookie('pos_access_token') ?? $request->bearerToken() ?? '');
-            $authServiceUrl = env('AUTH_SERVICE_URL', 'http://auth-service:8080');
-            $authResponse = Http::withToken($token)
-                ->post("{$authServiceUrl}/auth/staff", [
-                    'tenant_id' => $tenantId,
-                    'username' => $validated['username'],
-                    'password' => $validated['password'],
-                    'role' => 'user', 
-                ]);
+            $authResponse = $this->authServiceClient->createStaff($token, [
+                'tenant_id' => $tenantId,
+                'username' => $validated['username'],
+                'password' => $validated['password'],
+                'role' => 'user',
+            ]);
 
             if ($authResponse->failed()) {
                 return $this->jsonError(

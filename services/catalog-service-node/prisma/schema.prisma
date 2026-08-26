@@ -1,7 +1,4 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Prisma schema for Tenant Databases
 
 generator client {
   provider   = "prisma-client-js"
@@ -14,7 +11,6 @@ datasource db {
 
 model Category {
   id          Int       @id @default(autoincrement())
-  tenant_id   Int
   name        String
   description String?   @db.Text
   created_at  DateTime  @default(now())
@@ -22,19 +18,17 @@ model Category {
 
   products    Product[]
 
-  @@index([tenant_id])
   @@map("categories")
 }
 
 model Product {
   id             Int       @id @default(autoincrement())
-  tenant_id      Int
   category_id    Int?
   name           String
   sku            String?   @db.VarChar(100)
   barcode        String?   @db.VarChar(100)
-  price          Decimal   @db.Decimal(10, 2)
-  cost_price     Decimal?  @db.Decimal(10, 2)
+  price          Decimal   @db.Decimal(12, 2)
+  cost_price     Decimal?  @db.Decimal(12, 2)
   stock_quantity Int       @default(0)
   is_active      Boolean   @default(true)
   created_at     DateTime  @default(now())
@@ -47,21 +41,20 @@ model Product {
   category       Category? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   sale_items     SaleItem[]
 
-  @@index([tenant_id])
   @@index([sku])
+  @@index([category_id])
+  @@index([stock_out_date])
   @@map("products")
 }
 
 model Sale {
   id           Int        @id @default(autoincrement())
-  tenant_id    Int
   total_amount Decimal    @db.Decimal(12, 2)
   created_at   DateTime   @default(now())
   
   items        SaleItem[]
 
-  @@index([tenant_id])
-  @@index([tenant_id, created_at])
+  @@index([created_at])
   @@map("sales")
 }
 

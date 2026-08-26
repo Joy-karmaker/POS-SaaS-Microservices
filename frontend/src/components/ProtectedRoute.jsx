@@ -1,18 +1,17 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { getHomePathByRole } from '../auth/routeUtils'
-import { useAuth } from '../hooks/useAuth'
 
 export function ProtectedRoute({
   isLoadingSession,
   isAuthenticated,
   user,
+  tenantProfile,
   allowedRoles,
   allowedBusinessRoles = [],
   loginPath,
   children,
 }) {
   const location = useLocation()
-  const { tenantProfile } = useAuth()
 
   if (isLoadingSession) {
     return (

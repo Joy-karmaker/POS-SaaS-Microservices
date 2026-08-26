@@ -127,7 +127,11 @@ final class JwtService
 
     private function secret(): string
     {
-        $secret = (string) config('auth_jwt.secret', '');
+        // Container environment values are the source of truth for the shared
+        // service secret. Prefer them so a stale Laravel config cache cannot
+        // issue tokens that the Node services reject.
+        $secret = (string) ($_SERVER['AUTH_JWT_SECRET'] ?? getenv('AUTH_JWT_SECRET') ?: config('auth_jwt.secret', ''));
+
 
         if (trim($secret) === '') {
             throw new RuntimeException('AUTH_JWT_SECRET is not configured.');

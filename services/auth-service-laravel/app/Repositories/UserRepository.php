@@ -22,7 +22,7 @@ final class UserRepository
         } else {
             $query->where('tenant_id', $tenantId);
         }
-
+        
         return $query->first();
     }
 

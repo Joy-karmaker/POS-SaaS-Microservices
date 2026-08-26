@@ -127,7 +127,10 @@ final class JwtService
 
     private function secret(): string
     {
-        $secret = (string) config('auth_jwt.secret', '');
+        // The auth service issues tokens from its container environment. Read
+        // the same source here so a stale Laravel config cache cannot make
+        // otherwise valid shared JWTs fail signature validation.
+        $secret = (string) ($_SERVER['AUTH_JWT_SECRET'] ?? getenv('AUTH_JWT_SECRET') ?: config('auth_jwt.secret', ''));
 
         if (trim($secret) === '') {
             throw new RuntimeException('AUTH_JWT_SECRET is not configured.');

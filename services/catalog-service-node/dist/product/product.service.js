@@ -9,7 +9,7 @@ Object.defineProperty(exports, "ProductService", {
     }
 });
 const _common = require("@nestjs/common");
-const _prismaservice = require("../prisma.service");
+const _tenantconnectionservice = require("../tenant/tenant-connection.service");
 const _inventorygateway = require("../inventory/inventory.gateway");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -32,11 +32,9 @@ function _ts_metadata(metadataKey, metadataValue) {
 let ProductService = class ProductService {
     async create(tenantId, createProductDto) {
         const { image_url, ...rest } = createProductDto;
-        const product = await this.prisma.product.create({
-            data: {
-                ...rest,
-                tenant_id: Number(tenantId)
-            },
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const product = await client.product.create({
+            data: rest,
             include: {
                 category: true
             }
@@ -45,12 +43,11 @@ let ProductService = class ProductService {
         return product;
     }
     async findAll(tenantId, options) {
+        const client = await this.tenantConnectionService.getClient(tenantId);
         const page = options?.page || 1;
         const limit = options?.limit || 10;
         const skip = (page - 1) * limit;
-        const where = {
-            tenant_id: Number(tenantId)
-        };
+        const where = {};
         if (options?.search) {
             where.name = {
                 contains: options.search
@@ -60,7 +57,7 @@ let ProductService = class ProductService {
             where.category_id = options.categoryId;
         }
         const [data, total] = await Promise.all([
-            this.prisma.product.findMany({
+            client.product.findMany({
                 where,
                 include: {
                     category: true
@@ -71,7 +68,7 @@ let ProductService = class ProductService {
                     id: 'desc'
                 }
             }),
-            this.prisma.product.count({
+            client.product.count({
                 where
             })
         ]);
@@ -86,10 +83,8 @@ let ProductService = class ProductService {
         };
     }
     async getSearchIndex(tenantId) {
-        return this.prisma.product.findMany({
-            where: {
-                tenant_id: Number(tenantId)
-            },
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        return client.product.findMany({
             include: {
                 category: true
             },
@@ -99,10 +94,10 @@ let ProductService = class ProductService {
         });
     }
     async findOne(tenantId, id) {
-        const product = await this.prisma.product.findFirst({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const product = await client.product.findUnique({
             where: {
-                id,
-                tenant_id: Number(tenantId)
+                id
             },
             include: {
                 category: true
@@ -114,11 +109,9 @@ let ProductService = class ProductService {
         return product;
     }
     async update(tenantId, id, updateProductDto) {
-        // Ensure product exists for this tenant
         await this.findOne(tenantId, id);
+        const client = await this.tenantConnectionService.getClient(tenantId);
         const { category_id, ...rest } = updateProductDto;
-        // Prisma strips unknown fields at compile time but throws at runtime if passing unexpected keys.
-        // Ensure we don't pass frontend-only fields like image_url if they aren't in schema.
         if ('image_url' in rest) delete rest.image_url;
         const updateData = {
             ...rest
@@ -136,7 +129,7 @@ let ProductService = class ProductService {
                 };
             }
         }
-        const updatedProduct = await this.prisma.product.update({
+        const updatedProduct = await client.product.update({
             where: {
                 id
             },
@@ -149,9 +142,9 @@ let ProductService = class ProductService {
         return updatedProduct;
     }
     async remove(tenantId, id) {
-        // Ensure product exists for this tenant
         await this.findOne(tenantId, id);
-        const deletedProduct = await this.prisma.product.delete({
+        const client = await this.tenantConnectionService.getClient(tenantId);
+        const deletedProduct = await client.product.delete({
             where: {
                 id
             }
@@ -159,8 +152,8 @@ let ProductService = class ProductService {
         this.inventoryGateway.broadcastProductDeleted(Number(tenantId), id);
         return deletedProduct;
     }
-    constructor(prisma, inventoryGateway){
-        this.prisma = prisma;
+    constructor(tenantConnectionService, inventoryGateway){
+        this.tenantConnectionService = tenantConnectionService;
         this.inventoryGateway = inventoryGateway;
     }
 };
@@ -168,7 +161,7 @@ ProductService = _ts_decorate([
     (0, _common.Injectable)(),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService,
+        typeof _tenantconnectionservice.TenantConnectionService === "undefined" ? Object : _tenantconnectionservice.TenantConnectionService,
         typeof _inventorygateway.InventoryGateway === "undefined" ? Object : _inventorygateway.InventoryGateway
     ])
 ], ProductService);

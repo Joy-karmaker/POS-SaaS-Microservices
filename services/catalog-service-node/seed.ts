@@ -1,62 +1,83 @@
 import { PrismaClient } from '@prisma/client';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-
-const dbUrl = process.env.DATABASE_URL || `mysql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/control_plane`;
-const adapter = new PrismaMariaDb(dbUrl);
-const prisma = new PrismaClient({ adapter });
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 async function main() {
-  // Try to find an existing tenant ID from categories or products, fallback to 1
-  let tenantId = 1;
-  const existingCategory = await prisma.category.findFirst();
-  if (existingCategory) {
-    tenantId = existingCategory.tenant_id;
-    console.log(`Using existing tenant_id: ${tenantId}`);
-  } else {
-    console.log(`No existing records found. Using default tenant_id: ${tenantId}`);
+  const host = process.env.DB_HOST || '127.0.0.1';
+  const port = Number(process.env.DB_PORT) || 5432;
+  const user = process.env.DB_USERNAME || 'postgres';
+  const password = process.env.DB_PASSWORD || 'root';
+
+  const cpPool = new Pool({
+    host,
+    port,
+    user,
+    password,
+    database: 'control_plane',
+  });
+
+  const tenantRes = await cpPool.query('SELECT id, name, db_name FROM tenants LIMIT 1');
+  await cpPool.end();
+
+  if (tenantRes.rows.length === 0) {
+    console.log('No tenants found in control_plane. Please provision a tenant first.');
+    return;
   }
 
-  console.log('Inserting 10 dummy categories...');
-  const categories = [];
-  for (let i = 1; i <= 10; i++) {
-    const category = await prisma.category.create({
-      data: {
-        tenant_id: tenantId,
-        name: `Dummy Category ${i}`,
-        description: `This is a dummy category number ${i}`,
-      },
-    });
-    categories.push(category);
-  }
+  const tenant = tenantRes.rows[0];
+  console.log(`Seeding data into Tenant #${tenant.id} (${tenant.name} -> ${tenant.db_name})...`);
 
-  console.log('Inserting 100 dummy products...');
-  for (let i = 1; i <= 100; i++) {
-    // Randomly assign one of the 10 categories
-    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
-    
-    await prisma.product.create({
-      data: {
-        tenant_id: tenantId,
-        category_id: randomCategory.id,
-        name: `Dummy Product ${i}`,
-        sku: `DUMMY-SKU-${i.toString().padStart(3, '0')}`,
-        barcode: `100000000${i.toString().padStart(3, '0')}`,
-        price: (Math.random() * 100 + 1).toFixed(2),
-        cost_price: (Math.random() * 50 + 1).toFixed(2),
-        stock_quantity: Math.floor(Math.random() * 100),
-        is_active: true,
-      },
-    });
-  }
+  const tenantDbUrl = `postgresql://${user}:${password}@${host}:${port}/${tenant.db_name}`;
+  const adapter = new PrismaPg(tenantDbUrl);
+  const prisma = new PrismaClient({ adapter });
 
-  console.log('Dummy data insertion complete!');
+  try {
+    console.log('Inserting 5 sample categories...');
+    const categoryNames = ['Beverages', 'Bakery', 'Dairy', 'Snacks', 'Household'];
+    const categories = [];
+
+    for (const name of categoryNames) {
+      const category = await prisma.category.create({
+        data: {
+          name,
+          description: `Category for ${name}`,
+        },
+      });
+      categories.push(category);
+    }
+
+    console.log('Inserting 20 sample products with inventory & velocity...');
+    for (let i = 1; i <= 20; i++) {
+      const category = categories[i % categories.length];
+      const stock = Math.floor(Math.random() * 80) + 5;
+      const velocity = Number((Math.random() * 5 + 0.5).toFixed(2));
+      const daysRemaining = stock / velocity;
+      const stockOutDate = new Date();
+      stockOutDate.setDate(stockOutDate.getDate() + daysRemaining);
+
+      await prisma.product.create({
+        data: {
+          category_id: category.id,
+          name: `Product ${i} (${category.name})`,
+          sku: `SKU-${category.name.substring(0, 3).toUpperCase()}-${i.toString().padStart(3, '0')}`,
+          barcode: `8901000${i.toString().padStart(5, '0')}`,
+          price: Number((Math.random() * 50 + 5).toFixed(2)),
+          cost_price: Number((Math.random() * 25 + 2).toFixed(2)),
+          stock_quantity: stock,
+          is_active: true,
+          sales_velocity: velocity,
+          stock_out_date: stockOutDate,
+        },
+      });
+    }
+
+    console.log('Dummy tenant data insertion complete!');
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

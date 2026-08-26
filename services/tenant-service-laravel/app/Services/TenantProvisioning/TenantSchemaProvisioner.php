@@ -19,12 +19,34 @@ final class TenantSchemaProvisioner
             END;
             $$ LANGUAGE plpgsql',
 
-            'CREATE TABLE IF NOT EXISTS products (
+            'CREATE TABLE IF NOT EXISTS categories (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
-                price DECIMAL(12,2) NOT NULL,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                description TEXT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )',
+            'CREATE TABLE IF NOT EXISTS products (
+                id SERIAL PRIMARY KEY,
+                category_id INT NULL,
+                name VARCHAR(255) NOT NULL,
+                sku VARCHAR(100) NULL,
+                barcode VARCHAR(100) NULL,
+                price DECIMAL(12,2) NOT NULL,
+                cost_price DECIMAL(12,2) NULL,
+                stock_quantity INT NOT NULL DEFAULT 0,
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                sales_velocity DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                stock_out_date TIMESTAMP NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_products_category
+                    FOREIGN KEY (category_id) REFERENCES categories(id)
+                    ON DELETE SET NULL
+            )',
+            'CREATE INDEX IF NOT EXISTS idx_products_sku ON products (sku)',
+            'CREATE INDEX IF NOT EXISTS idx_products_category ON products (category_id)',
+            'CREATE INDEX IF NOT EXISTS idx_products_stock_out ON products (stock_out_date)',
             'CREATE TABLE IF NOT EXISTS inventory (
                 product_id INT PRIMARY KEY,
                 stock INT NOT NULL DEFAULT 0,
@@ -89,6 +111,7 @@ final class TenantSchemaProvisioner
                 total_amount DECIMAL(12,2) NOT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )',
+            'CREATE INDEX IF NOT EXISTS idx_sales_created_at ON sales (created_at)',
             'CREATE TABLE IF NOT EXISTS sale_items (
                 id SERIAL PRIMARY KEY,
                 sale_id INT NOT NULL,
@@ -100,7 +123,10 @@ final class TenantSchemaProvisioner
                     ON DELETE CASCADE,
                 CONSTRAINT fk_sale_items_product
                     FOREIGN KEY (product_id) REFERENCES products(id)
+                    ON DELETE CASCADE
             )',
+            'CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items (sale_id)',
+            'CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items (product_id)',
         ];
 
         foreach ($queries as $query) {

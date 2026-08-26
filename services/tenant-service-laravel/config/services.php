@@ -2,6 +2,12 @@
 
 return [
 
+    'auth_service' => [
+        'base_url' => env('AUTH_SERVICE_URL', 'http://auth-service:8080'),
+        'connect_timeout' => (int) env('AUTH_SERVICE_CONNECT_TIMEOUT', 3),
+        'timeout' => (int) env('AUTH_SERVICE_TIMEOUT', 10),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
