@@ -1,0 +1,44 @@
+// Prisma schema for the Reporting (CQRS read) database
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model DailySale {
+  id           BigInt   @id @default(autoincrement())
+  tenant_id    BigInt   @map("tenant_id")
+  date         DateTime @map("date")
+  total_sales  Decimal  @db.Decimal(12, 2) @default(0)
+  total_orders Int      @default(0)
+  total_items  Int      @default(0)
+  updated_at   DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenant_id, date])
+  @@map("daily_sales")
+}
+
+model HourlySale {
+  id           BigInt   @id @default(autoincrement())
+  tenant_id    BigInt   @map("tenant_id")
+  hour         DateTime @map("hour")
+  total_sales  Decimal  @db.Decimal(12, 2) @default(0)
+  total_orders Int      @default(0)
+
+  @@unique([tenant_id, hour])
+  @@map("hourly_sales")
+}
+
+model SaleEvent {
+  id         BigInt   @id @default(autoincrement())
+  event_id   String   @unique @map("event_id")
+  tenant_id  BigInt   @map("tenant_id")
+  order_id   Int      @map("order_id")
+  created_at DateTime @default(now()) @map("created_at")
+
+  @@map("sale_events")
+}

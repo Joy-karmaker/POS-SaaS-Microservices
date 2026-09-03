@@ -134,6 +134,24 @@ let TenantConnectionService = class TenantConnectionService {
             this.logger.error(`Failed to verify schema in ${dbName}: ${err.message}`);
         }
     }
+    /**
+   * Idempotency helper: check whether a domain event was already processed
+   * by the given consumer (backed by control_plane.processed_events).
+   */ async isProcessed(consumer, eventId) {
+        const result = await this.controlPlanePool.query('SELECT 1 FROM processed_events WHERE event_id = $1 AND consumer = $2', [
+            eventId,
+            consumer
+        ]);
+        return result.rows.length > 0;
+    }
+    /**
+   * Idempotency helper: record a processed domain event (no-op if already recorded).
+   */ async markProcessed(consumer, eventId) {
+        await this.controlPlanePool.query('INSERT INTO processed_events (event_id, consumer, processed_at) VALUES ($1, $2, NOW()) ON CONFLICT DO NOTHING', [
+            eventId,
+            consumer
+        ]);
+    }
     async onModuleDestroy() {
         this.logger.log('Closing all tenant database connections...');
         for (const [tid, client] of this.tenantClients.entries()){

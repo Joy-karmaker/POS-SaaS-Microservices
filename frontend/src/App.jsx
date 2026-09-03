@@ -12,6 +12,8 @@ import { TenantStaffPage } from './pages/TenantStaffPage'
 import { TenantStoresPage } from './pages/TenantStoresPage'
 import { TenantCatalogPage } from './pages/TenantCatalogPage'
 import { TenantPOSPage } from './pages/TenantPOSPage'
+import { TenantOrdersPage } from './pages/TenantOrdersPage'
+import { TenantReportsPage } from './pages/TenantReportsPage'
 
 const PHASE_STEPS = [
   'Phase 1: Infrastructure + Tenant Provisioning',
@@ -170,6 +172,23 @@ function App() {
         />
 
         <Route
+          path="/app/orders"
+          element={
+            <ProtectedRoute
+              isLoadingSession={auth.isLoadingSession}
+              isAuthenticated={auth.isAuthenticated}
+              user={auth.user}
+              tenantProfile={auth.tenantProfile}
+              allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager', 'cashier']}
+              loginPath="/app/login"
+            >
+              <TenantOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/app/staff"
           element={
             <ProtectedRoute
@@ -182,6 +201,23 @@ function App() {
               loginPath="/app/login"
             >
               <TenantStaffPage user={auth.user} />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/app/reports"
+          element={
+            <ProtectedRoute
+              isLoadingSession={auth.isLoadingSession}
+              isAuthenticated={auth.isAuthenticated}
+              user={auth.user}
+              tenantProfile={auth.tenantProfile}
+              allowedRoles={['tenant_admin', 'user']}
+              allowedBusinessRoles={['admin', 'manager']}
+              loginPath="/app/login"
+            >
+              <TenantReportsPage />
             </ProtectedRoute>
           }
         />

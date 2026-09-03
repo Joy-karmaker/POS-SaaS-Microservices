@@ -231,6 +231,128 @@ services:
       - tenant-service
       - catalog-service
       - cart-service
+      - order-service
+      - payment-service
+      - reporting-service
+    networks:
+      - pos-network
+
+  order-service:
+    build:
+      context: ./services/order-service-node
+      dockerfile: Dockerfile
+    container_name: order-service
+    volumes:
+      - ./services/order-service-node:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=128
+      PORT: 3000
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_EXCHANGE_TYPE: ${RABBITMQ_EXCHANGE_TYPE}
+      RABBITMQ_DLX: ${RABBITMQ_DLX}
+      RABBITMQ_ROUTING_PAYMENT_COMPLETED: ${RABBITMQ_ROUTING_PAYMENT_COMPLETED}
+      RABBITMQ_ROUTING_PAYMENT_FAILED: ${RABBITMQ_ROUTING_PAYMENT_FAILED}
+      RABBITMQ_QUEUE_PAYMENT_COMPLETED_ORDER: ${RABBITMQ_QUEUE_PAYMENT_COMPLETED_ORDER:-order.payment.events}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    expose:
+      - "3000"
+    networks:
+      - pos-network
+
+  payment-service:
+    build:
+      context: ./services/payment-service-node
+      dockerfile: Dockerfile
+    container_name: payment-service
+    volumes:
+      - ./services/payment-service-node:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=128
+      PORT: 3000
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_EXCHANGE_TYPE: ${RABBITMQ_EXCHANGE_TYPE}
+      RABBITMQ_DLX: ${RABBITMQ_DLX}
+      RABBITMQ_ROUTING_SALE_COMPLETED: ${RABBITMQ_ROUTING_SALE_COMPLETED}
+      RABBITMQ_ROUTING_PAYMENT_COMPLETED: ${RABBITMQ_ROUTING_PAYMENT_COMPLETED}
+      RABBITMQ_ROUTING_PAYMENT_FAILED: ${RABBITMQ_ROUTING_PAYMENT_FAILED}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    expose:
+      - "3000"
+    networks:
+      - pos-network
+
+  reporting-service:
+    build:
+      context: ./services/reporting-service-node
+      dockerfile: Dockerfile
+    container_name: reporting-service
+    volumes:
+      - ./services/reporting-service-node:/app
+      - /app/node_modules
+    command: npm run start:dev
+    environment:
+      NODE_ENV: development
+      NODE_OPTIONS: --max-old-space-size=128
+      PORT: 3000
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+      AUTH_JWT_ISSUER: ${AUTH_JWT_ISSUER}
+      AUTH_JWT_AUDIENCE: ${AUTH_JWT_AUDIENCE}
+      DATABASE_URL: postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${REPORTING_DATABASE}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_EXCHANGE_TYPE: ${RABBITMQ_EXCHANGE_TYPE}
+      RABBITMQ_DLX: ${RABBITMQ_DLX}
+      RABBITMQ_ROUTING_SALE_COMPLETED: ${RABBITMQ_ROUTING_SALE_COMPLETED}
+      RABBITMQ_QUEUE_SALE_COMPLETED_REPORTING: ${RABBITMQ_QUEUE_SALE_COMPLETED_REPORTING}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    expose:
+      - "3000"
     networks:
       - pos-network
 

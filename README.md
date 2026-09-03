@@ -21,7 +21,7 @@ Backend services:
 
 ## Stack
 
-- MySQL 8.4
+- PostgreSQL 16
 - RabbitMQ 3.13 (management UI enabled)
 - Redis 7.4
 - Nginx API Gateway
