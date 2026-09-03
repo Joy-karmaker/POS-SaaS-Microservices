@@ -3,6 +3,7 @@
 .vscode/
 node_modules/
 vendor/
+frontend/dist/
 .DS_Store
 credentials.md
 

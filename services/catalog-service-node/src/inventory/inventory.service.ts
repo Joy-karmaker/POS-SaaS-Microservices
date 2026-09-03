@@ -110,6 +110,41 @@ export class InventoryService {
     });
   }
 
+  /**
+   * Deduct stock for a completed sale (called by the sale.completed consumer).
+   * Uses a row lock + atomic UPDATE to stay safe under concurrency.
+   */
+  async applySale(tenantId: number, productId: number, quantity: number) {
+    const client = await this.tenantConnectionService.getClient(tenantId);
+    return client.$transaction(async (tx) => {
+      const products: any[] = await tx.$queryRaw`SELECT * FROM products WHERE id = ${productId} FOR UPDATE`;
+      const product = products[0];
+
+      if (!product) {
+        throw new NotFoundException(`Product #${productId} not found`);
+      }
+
+      const newQuantity = Number(product.stock_quantity) - quantity;
+
+      if (newQuantity < 0) {
+        throw new BadRequestException(
+          `Insufficient stock for Product #${productId}. Available: ${product.stock_quantity}`,
+        );
+      }
+
+      const updatedProduct = await tx.product.update({
+        where: { id: productId },
+        data: { stock_quantity: newQuantity },
+        include: { category: true },
+      });
+
+      this.inventoryGateway.broadcastStockUpdate(tenantId, productId, newQuantity);
+      this.inventoryGateway.broadcastProductUpdated(tenantId, updatedProduct);
+
+      return updatedProduct;
+    });
+  }
+
   async getStock(tenantId: number, productId: number) {
     const client = await this.tenantConnectionService.getClient(tenantId);
     const product = await client.product.findUnique({

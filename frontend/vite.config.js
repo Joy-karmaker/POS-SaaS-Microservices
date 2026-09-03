@@ -29,6 +29,18 @@ export default defineConfig({
         target: gatewayTarget,
         changeOrigin: true,
       },
+      '/order': {
+        target: gatewayTarget,
+        changeOrigin: true,
+      },
+      '/payment': {
+        target: gatewayTarget,
+        changeOrigin: true,
+      },
+      '/reports': {
+        target: gatewayTarget,
+        changeOrigin: true,
+      },
       '/health': {
         target: gatewayTarget,
         changeOrigin: true,

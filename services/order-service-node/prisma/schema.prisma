@@ -1,0 +1,45 @@
+// Prisma schema for Tenant Databases (orders live in the per-tenant DB)
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Order {
+  id         Int         @id @default(autoincrement())
+  store_id   BigInt?     @map("store_id")
+  user_id    BigInt?     @map("user_id")
+  shift_id   BigInt?     @map("shift_id")
+  status     String      @default("PENDING")
+  subtotal   Decimal     @db.Decimal(12, 2)
+  tax        Decimal     @db.Decimal(12, 2) @default(0)
+  discount   Decimal     @db.Decimal(12, 2) @default(0)
+  total      Decimal     @db.Decimal(12, 2)
+  created_at DateTime    @default(now()) @map("created_at")
+  updated_at DateTime    @updatedAt @map("updated_at")
+
+  items      OrderItem[]
+
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           Int      @id @default(autoincrement())
+  order_id     Int      @map("order_id")
+  product_id   Int      @map("product_id")
+  product_name String   @map("product_name")
+  quantity     Int
+  unit_price   Decimal  @db.Decimal(12, 2) @map("unit_price")
+  total_price  Decimal  @db.Decimal(12, 2) @map("total_price")
+  created_at   DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@map("order_items")
+}

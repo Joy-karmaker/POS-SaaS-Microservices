@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
-import { getCategories, getProductSearchIndex, adjustStock } from '../api/catalogApi'
+import { getCategories, getProductSearchIndex } from '../api/catalogApi'
 import { createCart, getCart, addToCart, updateCartItem, removeFromCart, clearCart, calculatePricing } from '../api/cartApi'
+import { createOrder } from '../api/orderApi'
+import { createPayment } from '../api/paymentApi'
 import { TenantNav } from '../components/TenantNav'
 import { io } from 'socket.io-client'
 import { FuzzySearchIndex } from '../utils/FuzzySearchIndex'
@@ -274,26 +276,45 @@ export function TenantPOSPage({ user }) {
     setIsProcessingCheckout(true)
 
     try {
-      // 1. Deduct stocks for all items in cart
-      for (const item of cartItems) {
-        await adjustStock(item.product_id, -item.quantity)
-      }
+      // 1. Create the order in order-service (tenant-scoped, writes to the tenant DB)
+      const order = await createOrder({
+        items: cartItems.map((item) => ({
+          product_id: item.product_id,
+          product_name: item.name,
+          quantity: item.quantity,
+          unit_price: item.price,
+        })),
+        subtotal: pricingResult.subtotal,
+        tax: pricingResult.tax,
+        discount: pricingResult.discount,
+        total: pricingResult.total,
+      })
 
-      // 2. Build receipt snapshot
+      // 2. Process the payment (idempotent via Idempotency-Key)
+      const payment = await createPayment({
+        order_id: order.id,
+        method: paymentMethod,
+        amount: pricingResult.total,
+        idempotency_key: crypto.randomUUID(),
+      })
+
+      // 3. Build receipt snapshot (sales.completed event deducts stock asynchronously)
       const receiptData = {
-        receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`,
+        orderId: order.id,
+        paymentId: payment.id,
+        receiptNumber: `REC-${String(order.id).padStart(6, '0')}`,
         date: new Date().toLocaleString(),
         items: [...cartItems],
         pricing: { ...pricingResult },
         paymentMethod,
-        amountReceived: paymentMethod === 'CASH' ? parseFloat(amountReceived) : totalToPay,
-        changeDue: paymentMethod === 'CASH' ? changeDue : 0
+        amountReceived: paymentMethod === 'CASH' ? parseFloat(amountReceived) : pricingResult.total,
+        changeDue: paymentMethod === 'CASH' ? changeDue : 0,
       }
 
-      // 3. Clear Redis cart
+      // 4. Clear Redis cart
       await clearCart(cartId)
 
-      // 4. Provision fresh cart session
+      // 5. Provision fresh cart session
       const res = await createCart()
       const nextCartId = res.cartId
       localStorage.setItem('pos_cart_id', nextCartId)
@@ -306,7 +327,7 @@ export function TenantPOSPage({ user }) {
       setTempCode('')
       setDiscountPercent(0)
 
-      // 5. Show receipt modal & clear workspace
+      // 6. Show receipt modal & clear workspace
       setReceipt(receiptData)
       setShowCheckout(false)
       setAmountReceived('')

@@ -43,6 +43,8 @@ export function TenantNav() {
   const showStaff = isOwner || isManager || isStaff
   const showShift = isOwner || isManager || isCashier
   const showPOS = isOwner || isManager || isCashier
+  const showOrders = isOwner || isManager || isCashier
+  const showReports = isOwner || isManager
 
   return (
     <nav className="route-tabs" aria-label="Tenant workspace navigation">
@@ -66,6 +68,11 @@ export function TenantNav() {
           POS
         </NavLink>
       )}
+      {showOrders && (
+        <NavLink to="/app/orders" className={navClassName}>
+          Orders
+        </NavLink>
+      )}
       {showStaff && (
         <NavLink to="/app/staff" className={navClassName}>
           Staff
@@ -74,6 +81,11 @@ export function TenantNav() {
       {showShift && (
         <NavLink to="/app/shift" className={navClassName}>
           Shift
+        </NavLink>
+      )}
+      {showReports && (
+        <NavLink to="/app/reports" className={navClassName}>
+          Reports
         </NavLink>
       )}
     </nav>
