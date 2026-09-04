@@ -9,25 +9,60 @@ datasource db {
   provider = "postgresql"
 }
 
-model Order {
-  id     Int    @id @default(autoincrement())
-  status String @default("PENDING")
-
-  @@map("orders")
-}
-
 model Payment {
-  id              BigInt   @id @default(autoincrement())
-  order_id        Int      @map("order_id")
-  method          String
-  amount          Decimal  @db.Decimal(12, 2)
-  status          String   @default("PENDING")
-  idempotency_key String?  @map("idempotency_key") @db.VarChar(255)
-  gateway_ref     String?  @map("gateway_ref") @db.VarChar(255)
-  created_at      DateTime @default(now()) @map("created_at")
-  updated_at      DateTime @updatedAt @map("updated_at")
+  id                 BigInt   @id @default(autoincrement())
+  order_id           Int?     @map("order_id")
+  purpose            String   @default("POS_SALE") @map("purpose") // POS_SALE | RESTOCK_ORDER
+  reference_id       String?  @map("reference_id")
+  method             String   // CASH | CARD | MFS | STRIPE | SSLCOMMERZ
+  gateway            String?  @map("gateway") // CASH | STRIPE | SSLCOMMERZ
+  amount             Decimal  @db.Decimal(12, 2)
+  amount_cents       BigInt?  @map("amount_cents")
+  currency           String   @default("BDT") @map("currency")
+  status             String   @default("PENDING") // PENDING | SUCCESS | FAILED | CANCELLED
+  idempotency_key    String?  @map("idempotency_key") @db.VarChar(255)
+  gateway_ref        String?  @map("gateway_ref") @db.VarChar(255)
+  client_secret      String?  @map("client_secret") @db.VarChar(512)
+  receipt_number     String?  @map("receipt_number") @db.VarChar(64)
+  metadata           String?  @map("metadata")
+  created_at         DateTime @default(now()) @map("created_at")
+  updated_at         DateTime @updatedAt @map("updated_at")
 
   @@unique([idempotency_key])
   @@index([order_id])
+  @@index([purpose, reference_id])
   @@map("payments")
+}
+
+model PaymentAttempt {
+  id               BigInt   @id @default(autoincrement())
+  payment_id       BigInt   @map("payment_id")
+  attempt_number   Int      @default(1) @map("attempt_number")
+  gateway          String   @map("gateway")
+  gateway_ref      String?  @map("gateway_ref")
+  status           String   @default("PENDING") @map("status")
+  request_payload  String?  @map("request_payload")
+  response_payload String?  @map("response_payload")
+  error_message    String?  @map("error_message")
+  created_at       DateTime @default(now()) @map("created_at")
+
+  @@index([payment_id])
+  @@map("payment_attempts")
+}
+
+model OutboxEvent {
+  id             BigInt    @id @default(autoincrement())
+  aggregate_type String    @map("aggregate_type") @db.VarChar(64)
+  aggregate_id   String    @map("aggregate_id") @db.VarChar(64)
+  event_type     String    @map("event_type") @db.VarChar(128)
+  payload        String    @map("payload")
+  status         String    @default("PENDING") @map("status") @db.VarChar(32)
+  retry_count    Int       @default(0) @map("retry_count")
+  error_message  String?   @map("error_message")
+  created_at     DateTime  @default(now()) @map("created_at")
+  published_at   DateTime? @map("published_at")
+
+  @@index([status])
+  @@index([created_at])
+  @@map("outbox_events")
 }

@@ -12,7 +12,7 @@ import { TenantStaffPage } from './pages/TenantStaffPage'
 import { TenantStoresPage } from './pages/TenantStoresPage'
 import { TenantCatalogPage } from './pages/TenantCatalogPage'
 import { TenantPOSPage } from './pages/TenantPOSPage'
-import { TenantOrdersPage } from './pages/TenantOrdersPage'
+import { TenantRestockPage } from './pages/TenantRestockPage'
 import { TenantReportsPage } from './pages/TenantReportsPage'
 
 const PHASE_STEPS = [
@@ -171,8 +171,9 @@ function App() {
           }
         />
 
+
         <Route
-          path="/app/orders"
+          path="/app/restock"
           element={
             <ProtectedRoute
               isLoadingSession={auth.isLoadingSession}
@@ -180,10 +181,10 @@ function App() {
               user={auth.user}
               tenantProfile={auth.tenantProfile}
               allowedRoles={['tenant_admin', 'user']}
-              allowedBusinessRoles={['admin', 'manager', 'cashier']}
+              allowedBusinessRoles={['admin', 'manager']}
               loginPath="/app/login"
             >
-              <TenantOrdersPage />
+              <TenantRestockPage />
             </ProtectedRoute>
           }
         />
