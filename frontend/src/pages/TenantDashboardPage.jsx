@@ -3,6 +3,7 @@ import { HealthCard } from '../components/HealthCard'
 import { TenantNav } from '../components/TenantNav'
 import { useServiceHealth } from '../hooks/useServiceHealth'
 import { getAnalyticsSummary, getForecastList, seedSimulationSales, recalculateAnalytics } from '../api/analyticsApi'
+import { createRestockOrder } from '../api/restockApi'
 import { io } from 'socket.io-client'
 
 export function TenantDashboardPage({ user }) {
@@ -17,6 +18,38 @@ export function TenantDashboardPage({ user }) {
   const [seeding, setSeeding] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
   const [seedCount, setSeedCount] = useState(1000)
+
+  // 1-Click Warehouse Restock modal states
+  const [restockProduct, setRestockProduct] = useState(null)
+  const [restockQty, setRestockQty] = useState(50)
+  const [restockWarehouse, setRestockWarehouse] = useState('Central Distribution Hub')
+  const [isSubmittingRestock, setIsSubmittingRestock] = useState(false)
+
+  const handleOpenRestock = (p) => {
+    setRestockProduct(p)
+    const suggested = Math.max(25, Math.ceil(Number(p.sales_velocity || 0) * 14))
+    setRestockQty(suggested)
+  }
+
+  const handleConfirmRestock = async (e) => {
+    e.preventDefault()
+    if (!restockProduct || restockQty <= 0) return
+    setIsSubmittingRestock(true)
+    try {
+      await createRestockOrder({
+        warehouse_name: restockWarehouse,
+        notes: `Urgent restock triggered from Stock-out Forecast: current stock was ${restockProduct.stock_quantity}`,
+        items: [{ product_id: restockProduct.id, quantity: Number(restockQty) }],
+      })
+      alert(`Restock order for ${restockQty} units of "${restockProduct.name}" submitted to ${restockWarehouse}!\n\nYou can track shipment and mark as Received in the Restock tab.`)
+      setRestockProduct(null)
+    } catch (err) {
+      console.error(err)
+      alert(err.response?.data?.message || 'Failed to submit restock order')
+    } finally {
+      setIsSubmittingRestock(false)
+    }
+  }
 
   // Fetch initial analytics summary
   const fetchSummary = async () => {
@@ -311,6 +344,7 @@ export function TenantDashboardPage({ user }) {
                   <th style={{ textAlign: 'center' }}>Current Stock</th>
                   <th style={{ textAlign: 'center' }}>Sales Velocity (Qty/Day)</th>
                   <th style={{ textAlign: 'right' }}>Predicted Stock-out Date</th>
+                  <th style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -342,6 +376,28 @@ export function TenantDashboardPage({ user }) {
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 500 }}>
                         {formatStockOutDate(p)}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleOpenRestock(p)}
+                          style={{
+                            background: riskLevel === 'out' ? '#ef4444' : riskLevel === 'critical' ? '#f97316' : '#16a34a',
+                            color: '#ffffff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '0.35rem 0.75rem',
+                            fontSize: '0.8rem',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                          }}
+                          title="Create Purchase Order to Central Warehouse"
+                        >
+                          📦 Restock
+                        </button>
                       </td>
                     </tr>
                   )
@@ -385,19 +441,107 @@ export function TenantDashboardPage({ user }) {
         )}
       </article>
 
-      {/* Styled Micro-Animations Injection */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% {
-            opacity: 1;
-            box-shadow: var(--shadow);
-          }
-          50% {
-            opacity: 0.95;
-            box-shadow: 0 0 15px rgba(249, 115, 22, 0.15);
-          }
-        }
-      `}</style>
+      {/* 1-Click Warehouse Restock Modal */}
+      {restockProduct && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '1rem',
+          }}
+          onClick={() => setRestockProduct(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              maxWidth: 440,
+              width: '100%',
+              padding: '1.75rem',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Warehouse Restock Order</h3>
+                <span className="muted" style={{ fontSize: '0.85rem' }}>Auto-replenishment recommendation</span>
+              </div>
+              <span style={{ fontSize: '0.8rem', background: '#fee2e2', color: '#b91c1c', padding: '0.25rem 0.6rem', borderRadius: 9999, fontWeight: 600 }}>
+                Stock: {restockProduct.stock_quantity}
+              </span>
+            </div>
+
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem', marginBottom: '1.25rem', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '1.05rem', marginBottom: '0.25rem' }}>
+                {restockProduct.name}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                SKU: {restockProduct.sku || '—'} • Sales Velocity: <strong style={{ color: 'var(--primary)' }}>{restockProduct.sales_velocity} units/day</strong>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmRestock} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Restock Quantity (Units):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={restockQty}
+                  onChange={(e) => setRestockQty(Number(e.target.value))}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                  required
+                />
+                <span className="muted" style={{ fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                  * Recommended based on 14-day velocity buffer.
+                </span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Fulfillment Warehouse:
+                </label>
+                <select
+                  value={restockWarehouse}
+                  onChange={(e) => setRestockWarehouse(e.target.value)}
+                  style={{ width: '100%', padding: '0.6rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
+                >
+                  <option value="Central Distribution Hub">Central Distribution Hub</option>
+                  <option value="Regional North Warehouse">Regional North Warehouse</option>
+                  <option value="Regional South Logistics">Regional South Logistics</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setRestockProduct(null)}
+                  className="btn-secondary"
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRestock}
+                  className="btn-primary"
+                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', background: '#16a34a' }}
+                >
+                  {isSubmittingRestock ? 'Submitting...' : `Submit Order (+${restockQty} Units)`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </main>
   )

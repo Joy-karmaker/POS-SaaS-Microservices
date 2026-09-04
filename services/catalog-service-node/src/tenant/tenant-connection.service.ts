@@ -86,6 +86,11 @@ export class TenantConnectionService implements OnModuleDestroy {
     return client;
   }
 
+  async getPool(tenantId: number): Promise<Pool> {
+    await this.getClient(tenantId);
+    return this.tenantPools.get(Number(tenantId))!;
+  }
+
   /**
    * Self-healing schema migration to ensure all required tables and columns exist in the tenant DB.
    */
@@ -138,6 +143,50 @@ export class TenantConnectionService implements OnModuleDestroy {
 
         CREATE INDEX IF NOT EXISTS idx_sale_items_sale ON sale_items (sale_id);
         CREATE INDEX IF NOT EXISTS idx_sale_items_product ON sale_items (product_id);
+
+        CREATE TABLE IF NOT EXISTS restock_orders (
+          id SERIAL PRIMARY KEY,
+          order_number VARCHAR(64) NOT NULL UNIQUE,
+          warehouse_name VARCHAR(255) NOT NULL DEFAULT 'Central Distribution Hub',
+          status VARCHAR(32) NOT NULL DEFAULT 'REQUESTED',
+          total_items INT NOT NULL DEFAULT 0,
+          total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+          payment_status VARCHAR(32) NOT NULL DEFAULT 'UNPAID',
+          payment_id BIGINT NULL,
+          payment_gateway VARCHAR(64) NULL,
+          notes TEXT NULL,
+          requested_by VARCHAR(255) NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          received_at TIMESTAMP NULL
+        );
+
+        DO $$
+        BEGIN
+          ALTER TABLE restock_orders ADD COLUMN IF NOT EXISTS total_cost DECIMAL(12,2) NOT NULL DEFAULT 0.00;
+          ALTER TABLE restock_orders ADD COLUMN IF NOT EXISTS payment_status VARCHAR(32) NOT NULL DEFAULT 'UNPAID';
+          ALTER TABLE restock_orders ADD COLUMN IF NOT EXISTS payment_id BIGINT NULL;
+          ALTER TABLE restock_orders ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(64) NULL;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END $$;
+
+        CREATE INDEX IF NOT EXISTS idx_restock_orders_status ON restock_orders (status);
+        CREATE INDEX IF NOT EXISTS idx_restock_orders_payment_status ON restock_orders (payment_status);
+
+        CREATE TABLE IF NOT EXISTS restock_order_items (
+          id SERIAL PRIMARY KEY,
+          restock_order_id INT NOT NULL,
+          product_id INT NOT NULL,
+          product_name VARCHAR(255) NOT NULL,
+          sku VARCHAR(100) NULL,
+          quantity INT NOT NULL,
+          cost_price DECIMAL(12,2) NOT NULL DEFAULT 0,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT fk_restock_order FOREIGN KEY (restock_order_id) REFERENCES restock_orders(id) ON DELETE CASCADE,
+          CONSTRAINT fk_restock_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_restock_items_order ON restock_order_items (restock_order_id);
       `);
       this.logger.log(`Verified schema in tenant DB: ${dbName}`);
     } catch (err: any) {

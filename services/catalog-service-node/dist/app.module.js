@@ -16,6 +16,7 @@ const _categorymodule = require("./category/category.module");
 const _productmodule = require("./product/product.module");
 const _inventorymodule = require("./inventory/inventory.module");
 const _analyticsmodule = require("./analytics/analytics.module");
+const _restockmodule = require("./restock/restock.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -38,7 +39,8 @@ AppModule = _ts_decorate([
             _categorymodule.CategoryModule,
             _productmodule.ProductModule,
             _inventorymodule.InventoryModule,
-            _analyticsmodule.AnalyticsModule
+            _analyticsmodule.AnalyticsModule,
+            _restockmodule.RestockModule
         ],
         controllers: [
             _appcontroller.AppController

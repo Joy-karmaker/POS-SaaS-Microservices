@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { getCategories, getProductSearchIndex } from '../api/catalogApi'
 import { createCart, getCart, addToCart, updateCartItem, removeFromCart, clearCart, calculatePricing } from '../api/cartApi'
-import { createOrder } from '../api/orderApi'
-import { createPayment } from '../api/paymentApi'
+import { initiatePayment, verifyPayment } from '../api/paymentApi'
 import { TenantNav } from '../components/TenantNav'
 import { io } from 'socket.io-client'
 import { FuzzySearchIndex } from '../utils/FuzzySearchIndex'
@@ -31,6 +30,7 @@ export function TenantPOSPage({ user }) {
   const [checkoutError, setCheckoutError] = useState('')
   const [receipt, setReceipt] = useState(null)
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false)
+  const [saleSuccessToast, setSaleSuccessToast] = useState(null)
 
   // Fuzzy Search Trie Index
   const searchIndex = useMemo(() => new FuzzySearchIndex(), [])
@@ -276,45 +276,56 @@ export function TenantPOSPage({ user }) {
     setIsProcessingCheckout(true)
 
     try {
-      // 1. Create the order in order-service (tenant-scoped, writes to the tenant DB)
-      const order = await createOrder({
+      // 1. Process payment via Payment Service & Gateways (Stripe / SSLCOMMERZ / Cash)
+      const chosenGateway = paymentMethod === 'CASH' ? 'CASH' : (paymentMethod === 'STRIPE' || paymentMethod === 'CARD') ? 'STRIPE' : 'SSLCOMMERZ'
+      const currency = chosenGateway === 'STRIPE' ? 'USD' : 'BDT'
+
+      const initRes = await initiatePayment({
+        purpose: 'POS_SALE',
+        method: paymentMethod,
+        gateway: chosenGateway,
+        amount: pricingResult.total,
+        currency,
+        subtotal: pricingResult.subtotal,
+        tax: pricingResult.tax,
+        discount: pricingResult.discount,
+        total: pricingResult.total,
         items: cartItems.map((item) => ({
           product_id: item.product_id,
           product_name: item.name,
           quantity: item.quantity,
           unit_price: item.price,
         })),
-        subtotal: pricingResult.subtotal,
-        tax: pricingResult.tax,
-        discount: pricingResult.discount,
-        total: pricingResult.total,
-      })
-
-      // 2. Process the payment (idempotent via Idempotency-Key)
-      const payment = await createPayment({
-        order_id: order.id,
-        method: paymentMethod,
-        amount: pricingResult.total,
         idempotency_key: crypto.randomUUID(),
       })
 
-      // 3. Build receipt snapshot (sales.completed event deducts stock asynchronously)
+      let finalPayment = initRes
+      // If gateway requires verification (Stripe or SSLCOMMERZ)
+      if (initRes.status !== 'SUCCESS') {
+        finalPayment = await verifyPayment({
+          payment_id: initRes.id,
+          gateway: chosenGateway,
+          gateway_ref: initRes.gateway_ref,
+          verification_data: { tran_id: initRes.gateway_ref, val_id: `VAL_${Date.now()}` },
+        })
+      }
+
+      // 2. Build receipt snapshot for instant or later printing
       const receiptData = {
-        orderId: order.id,
-        paymentId: payment.id,
-        receiptNumber: `REC-${String(order.id).padStart(6, '0')}`,
+        paymentId: finalPayment.id,
+        receiptNumber: finalPayment.receipt_number || `REC-${String(finalPayment.id).padStart(6, '0')}`,
         date: new Date().toLocaleString(),
         items: [...cartItems],
         pricing: { ...pricingResult },
-        paymentMethod,
+        paymentMethod: chosenGateway === 'STRIPE' ? 'Stripe Card (USD)' : chosenGateway === 'SSLCOMMERZ' ? 'SSLCOMMERZ (bKash/BDT)' : 'Cash',
+        gatewayRef: finalPayment.gateway_ref,
+        currency,
         amountReceived: paymentMethod === 'CASH' ? parseFloat(amountReceived) : pricingResult.total,
         changeDue: paymentMethod === 'CASH' ? changeDue : 0,
       }
 
-      // 4. Clear Redis cart
+      // 3. Clear Redis cart & provision fresh session for the next customer
       await clearCart(cartId)
-
-      // 5. Provision fresh cart session
       const res = await createCart()
       const nextCartId = res.cartId
       localStorage.setItem('pos_cart_id', nextCartId)
@@ -326,11 +337,16 @@ export function TenantPOSPage({ user }) {
       setDiscountCode('')
       setTempCode('')
       setDiscountPercent(0)
-
-      // 6. Show receipt modal & clear workspace
-      setReceipt(receiptData)
-      setShowCheckout(false)
       setAmountReceived('')
+
+      // 4. IMMEDIATELY CLOSE checkout modal - counter is ready for next customer!
+      setShowCheckout(false)
+
+      // 5. Show non-blocking success banner with 1-click Print Receipt option
+      setSaleSuccessToast(receiptData)
+      setTimeout(() => {
+        setSaleSuccessToast((prev) => (prev?.receiptNumber === receiptData.receiptNumber ? null : prev))
+      }, 5000)
     } catch (err) {
       console.error(err)
       setCheckoutError(err.response?.data?.message || 'Checkout failed. Please verify stock availability.')
@@ -357,6 +373,57 @@ export function TenantPOSPage({ user }) {
       </header>
 
       <TenantNav />
+
+      {/* Non-blocking instant checkout success notification */}
+      {saleSuccessToast && (
+        <div
+          style={{
+            background: '#15803d',
+            color: '#ffffff',
+            borderRadius: 12,
+            padding: '0.85rem 1.25rem',
+            margin: '0.75rem 0',
+            boxShadow: '0 4px 12px rgba(21, 128, 61, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.4rem' }}>⚡</span>
+            <div>
+              <strong style={{ fontSize: '0.95rem' }}>Sale {saleSuccessToast.receiptNumber} Completed & Closed!</strong>
+              <div style={{ fontSize: '0.82rem', opacity: 0.9 }}>
+                ${Number(saleSuccessToast.pricing?.total || 0).toFixed(2)} received via {saleSuccessToast.paymentMethod} • Register reset and ready for next customer.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button
+              onClick={() => { setReceipt(saleSuccessToast); setSaleSuccessToast(null); }}
+              style={{
+                background: '#ffffff',
+                color: '#15803d',
+                border: 'none',
+                borderRadius: 8,
+                padding: '0.4rem 0.8rem',
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              🧾 View Receipt
+            </button>
+            <button
+              onClick={() => setSaleSuccessToast(null)}
+              style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', fontSize: '1.1rem', opacity: 0.8 }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Terminal Screen */}
       <main className="pos-grid">
@@ -608,13 +675,25 @@ export function TenantPOSPage({ user }) {
                   <select 
                     value={paymentMethod} 
                     onChange={(e) => setPaymentMethod(e.target.value)}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', fontWeight: 600 }}
                   >
-                    <option value="CASH">💵 Cash Payment</option>
-                    <option value="CARD">💳 Credit/Debit Card</option>
-                    <option value="MOBILE_BANKING">📱 BKash / Nagad Mobile Banking</option>
+                    <option value="CASH">💵 Cash (In-Store Physical Currency)</option>
+                    <option value="STRIPE">🌎 Stripe Gateway (Cards / Apple Pay / USD)</option>
+                    <option value="SSLCOMMERZ">🇧🇩 SSLCOMMERZ (bKash / Nagad / Local Cards / BDT)</option>
                   </select>
                 </div>
+
+                {paymentMethod === 'STRIPE' && (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '0.75rem', fontSize: '0.85rem', color: '#166534', marginBottom: '1rem' }}>
+                    <strong>💳 Stripe Checkout:</strong> Supports Visa, Mastercard, American Express, Apple Pay, and Google Pay. Minor units (cents) calculated automatically.
+                  </div>
+                )}
+
+                {paymentMethod === 'SSLCOMMERZ' && (
+                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '0.75rem', fontSize: '0.85rem', color: '#1e40af', marginBottom: '1rem' }}>
+                    <strong>📱 SSLCOMMERZ Gateway:</strong> Bangladesh local payment gateway supporting bKash, Nagad, Rocket, local Visa/Mastercard, and Internet Banking (BDT).
+                  </div>
+                )}
 
                 {paymentMethod === 'CASH' && (
                   <div className="form-group">

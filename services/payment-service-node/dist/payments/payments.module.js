@@ -13,6 +13,11 @@ const _paymentsservice = require("./payments.service");
 const _paymentscontroller = require("./payments.controller");
 const _tenantmodule = require("../tenant/tenant.module");
 const _rabbitmqmodule = require("../rabbitmq/rabbitmq.module");
+const _cashgateway = require("./gateways/cash.gateway");
+const _stripegateway = require("./gateways/stripe.gateway");
+const _sslcommerzgateway = require("./gateways/sslcommerz.gateway");
+const _gatewayregistry = require("./gateways/gateway.registry");
+const _outboxservice = require("./outbox/outbox.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
@@ -38,7 +43,16 @@ PaymentsModule = _ts_decorate([
             _paymentscontroller.PaymentsController
         ],
         providers: [
-            _paymentsservice.PaymentsService
+            _paymentsservice.PaymentsService,
+            _cashgateway.CashGateway,
+            _stripegateway.StripeGateway,
+            _sslcommerzgateway.SSLCommerzGateway,
+            _gatewayregistry.GatewayRegistry,
+            _outboxservice.OutboxService
+        ],
+        exports: [
+            _paymentsservice.PaymentsService,
+            _outboxservice.OutboxService
         ]
     })
 ], PaymentsModule);

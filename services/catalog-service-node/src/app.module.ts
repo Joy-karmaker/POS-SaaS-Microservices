@@ -6,9 +6,10 @@ import { CategoryModule } from './category/category.module';
 import { ProductModule } from './product/product.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { RestockModule } from './restock/restock.module';
 
 @Module({
-  imports: [TenantModule, CategoryModule, ProductModule, InventoryModule, AnalyticsModule],
+  imports: [TenantModule, CategoryModule, ProductModule, InventoryModule, AnalyticsModule, RestockModule],
   controllers: [AppController],
   providers: [AppService],
 })
